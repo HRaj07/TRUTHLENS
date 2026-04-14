@@ -1,0 +1,24 @@
+# ── TruthLens FastAPI Backend Dependencies ──────────────────
+# Core framework
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9
+
+# WebSocket support
+websockets>=12.0
+
+# Data / ML
+numpy>=1.24.0
+opencv-python-headless>=4.8.0
+
+# AI model (High Accuracy)
+deepface>=0.0.99
+mediapipe>=0.10.0
+tf-keras>=2.15.0
+tensorflow>=2.15.0
+
+# PDF generation (legacy backend PDF)
+reportlab>=4.0.0
+
+# Utilities
+python-dotenv>=1.0.0
