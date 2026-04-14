@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  UserCircle, 
-  Mail, 
-  Lock, 
-  Briefcase, 
-  ChevronRight, 
+import {
+  User,
+  UserCircle,
+  Mail,
+  Lock,
+  Briefcase,
+  ChevronRight,
   ArrowLeft,
   ShieldCheck,
   Globe
@@ -23,7 +23,7 @@ const AuthPage = () => {
 
   const isSignupPath = location.pathname === '/signup' || modeParam === 'signup';
   const [isLogin, setIsLogin] = useState(!isSignupPath);
-  
+
   React.useEffect(() => {
     setIsLogin(!isSignupPath);
   }, [isSignupPath]);
@@ -37,7 +37,7 @@ const AuthPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
-  
+
   const [authMode, setAuthMode] = useState('password'); // 'password' | 'face'
   const videoRef = React.useRef(null);
   const streamRef = React.useRef(null);
@@ -55,8 +55,8 @@ const AuthPage = () => {
         .then(stream => {
           streamRef.current = stream;
           if (videoRef.current) {
-             videoRef.current.srcObject = stream;
-             videoRef.current.play().catch(()=>{});
+            videoRef.current.srcObject = stream;
+            videoRef.current.play().catch(() => { });
           }
         })
         .catch(err => setFaceError('Camera access denied or unavailable.'));
@@ -73,33 +73,33 @@ const AuthPage = () => {
   React.useEffect(() => {
     let intervalId;
     let isMounted = true;
-    
+
     if (isLogin && authMode === 'face' && !authError && !isSubmitting) {
       intervalId = setInterval(async () => {
-         try {
-            const image = captureFace();
-            if (!image) return;
-            
-            const btnStatus = document.getElementById('auto-scan-status');
-            if (btnStatus) btnStatus.innerText = "Analyzing Face...";
-            
-            await faceLogin(image, role);
-            
-            if (!isMounted) return;
-            
-            if (redirectParams) {
-              navigate(redirectParams);
-            } else {
-              navigate(role === 'interviewer' ? '/dashboard/interviewer' : '/dashboard/candidate');
-            }
-         } catch (err) {
-            // Silently ignore failed matches and keep scanning
-            const btnStatus = document.getElementById('auto-scan-status');
-            if (btnStatus) btnStatus.innerText = "No match. Holding for stable image...";
-         }
+        try {
+          const image = captureFace();
+          if (!image) return;
+
+          const btnStatus = document.getElementById('auto-scan-status');
+          if (btnStatus) btnStatus.innerText = "Analyzing Face...";
+
+          await faceLogin(image, role);
+
+          if (!isMounted) return;
+
+          if (redirectParams) {
+            navigate(redirectParams);
+          } else {
+            navigate(role === 'interviewer' ? '/dashboard/interviewer' : '/dashboard/candidate');
+          }
+        } catch (err) {
+          // Silently ignore failed matches and keep scanning
+          const btnStatus = document.getElementById('auto-scan-status');
+          if (btnStatus) btnStatus.innerText = "No match. Holding for stable image...";
+        }
       }, 3000);
     }
-    
+
     return () => {
       isMounted = false;
       if (intervalId) clearInterval(intervalId);
@@ -128,19 +128,19 @@ const AuthPage = () => {
 
     try {
       if (authMode === 'face') {
-         const image = captureFace();
-         if (!image) throw new Error("Could not capture face image.");
-         if (isLogin) {
-            await faceLogin(image, role);
-         } else {
-            await faceSignup({ ...formData, role, image });
-         }
+        const image = captureFace();
+        if (!image) throw new Error("Could not capture face image.");
+        if (isLogin) {
+          await faceLogin(image, role);
+        } else {
+          await faceSignup({ ...formData, role, image });
+        }
       } else {
-         if (isLogin) {
-            await login(formData.email, formData.password, role);
-         } else {
-            await signup({ ...formData, role });
-         }
+        if (isLogin) {
+          await login(formData.email, formData.password, role);
+        } else {
+          await signup({ ...formData, role });
+        }
       }
       if (redirectParams) {
         navigate(redirectParams);
@@ -190,7 +190,7 @@ const AuthPage = () => {
               <div className="w-10 h-10 glass rounded-lg flex items-center justify-center">
                 <Briefcase className="text-neon-400 w-5 h-5" />
               </div>
-              <span className="text-slate-300 font-medium">FAANG Level Standards</span>
+              <span className="text-slate-300 font-medium">Enterprise Level Standards</span>
             </div>
           </div>
         </div>
@@ -206,13 +206,13 @@ const AuthPage = () => {
       <div className="w-full md:w-1/2 flex items-center justify-center p-6 md:p-16 relative">
         {/* Mobile Logo */}
         <Link to="/" className="md:hidden absolute top-8 left-8 flex items-center gap-2">
-           <div className="w-8 h-8 bg-gradient-neon rounded flex items-center justify-center shadow-neon">
-              <ShieldCheck className="text-white w-5 h-5" />
-           </div>
-           <span className="text-xl font-black tracking-tighter text-white uppercase">TruthLens</span>
+          <div className="w-8 h-8 bg-gradient-neon rounded flex items-center justify-center shadow-neon">
+            <ShieldCheck className="text-white w-5 h-5" />
+          </div>
+          <span className="text-xl font-black tracking-tighter text-white uppercase">TruthLens</span>
         </Link>
 
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="w-full max-w-md"
@@ -230,11 +230,10 @@ const AuthPage = () => {
           <div className="grid grid-cols-2 gap-4 mb-8">
             <button
               onClick={() => { setRole('interviewer'); }}
-              className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${
-                role === 'interviewer' 
-                ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30' 
-                : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-              }`}
+              className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${role === 'interviewer'
+                  ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30'
+                  : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                }`}
             >
               <UserCircle className={role === 'interviewer' ? 'text-neon-400' : 'text-slate-500'} />
               <div className="text-center">
@@ -244,11 +243,10 @@ const AuthPage = () => {
             </button>
             <button
               onClick={() => { setRole('candidate'); }}
-              className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${
-                role === 'candidate' 
-                ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30' 
-                : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-              }`}
+              className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${role === 'candidate'
+                  ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30'
+                  : 'bg-slate-900 border-slate-800 hover:border-slate-700'
+                }`}
             >
               <User className={role === 'candidate' ? 'text-neon-400' : 'text-slate-500'} />
               <div className="text-center">
@@ -279,8 +277,8 @@ const AuthPage = () => {
             {isLogin && (
               <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 text-xs text-slate-400">
                 <span className="text-neon-400 font-bold">Demo:</span> Use{' '}
-                <button type="button" onClick={() => setFormData(f => ({...f, email:'alex@interviewer.com', password:'demo123'}))} className="text-neon-300 underline hover:text-white">alex@interviewer.com</button>{' '}or{' '}
-                <button type="button" onClick={() => setFormData(f => ({...f, email:'sam@candidate.com', password:'demo123'}))} className="text-neon-300 underline hover:text-white">sam@candidate.com</button>{' '}/ <span className="font-mono">demo123</span>
+                <button type="button" onClick={() => setFormData(f => ({ ...f, email: 'alex@interviewer.com', password: 'demo123' }))} className="text-neon-300 underline hover:text-white">alex@interviewer.com</button>{' '}or{' '}
+                <button type="button" onClick={() => setFormData(f => ({ ...f, email: 'sam@candidate.com', password: 'demo123' }))} className="text-neon-300 underline hover:text-white">sam@candidate.com</button>{' '}/ <span className="font-mono">demo123</span>
               </div>
             )}
             <AnimatePresence mode='wait'>
@@ -293,12 +291,12 @@ const AuthPage = () => {
                   <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Full Name</label>
                   <div className="relative mt-2">
                     <User className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       name="name"
                       required
-                      placeholder="John Doe" 
-                      className="input-dark !pl-12" 
+                      placeholder="John Doe"
+                      className="input-dark !pl-12"
                       value={formData.name}
                       onChange={handleInputChange}
                     />
@@ -312,12 +310,12 @@ const AuthPage = () => {
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Email Address</label>
                 <div className="relative mt-2">
                   <Mail className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
-                  <input 
-                    type="email" 
+                  <input
+                    type="email"
                     name="email"
                     required={!isLogin || authMode === 'password'}
-                    placeholder="name@company.com" 
-                    className="input-dark !pl-12" 
+                    placeholder="name@company.com"
+                    className="input-dark !pl-12"
                     value={formData.email}
                     onChange={handleInputChange}
                   />
@@ -333,12 +331,12 @@ const AuthPage = () => {
                 </div>
                 <div className="relative mt-2">
                   <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
-                  <input 
-                    type="password" 
+                  <input
+                    type="password"
                     name="password"
                     required
-                    placeholder="••••••••" 
-                    className="input-dark !pl-12" 
+                    placeholder="••••••••"
+                    className="input-dark !pl-12"
                     value={formData.password}
                     onChange={handleInputChange}
                   />
@@ -364,8 +362,8 @@ const AuthPage = () => {
             )}
 
             {!(isLogin && authMode === 'face') && (
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isSubmitting}
                 className="btn-primary w-full py-4 mt-4 flex items-center justify-center gap-2 group"
               >
@@ -382,18 +380,18 @@ const AuthPage = () => {
 
             {(isLogin && authMode === 'face') && (
               <div className="w-full py-4 mt-4 flex flex-col items-center justify-center gap-2 bg-neon-400/5 border border-neon-400/20 rounded-xl">
-                 <div className="flex items-center gap-3 text-neon-400 font-bold uppercase tracking-widest text-xs">
-                   <div className="w-4 h-4 border-2 border-neon-400/30 border-t-neon-400 rounded-full animate-spin shadow-[0_0_10px_rgba(45,212,191,0.5)]"></div>
-                   <span id="auto-scan-status">Auto-Scanning Face</span>
-                 </div>
-                 <div className="text-[10px] text-slate-500 uppercase tracking-widest">Looking directly at the camera</div>
+                <div className="flex items-center gap-3 text-neon-400 font-bold uppercase tracking-widest text-xs">
+                  <div className="w-4 h-4 border-2 border-neon-400/30 border-t-neon-400 rounded-full animate-spin shadow-[0_0_10px_rgba(45,212,191,0.5)]"></div>
+                  <span id="auto-scan-status">Auto-Scanning Face</span>
+                </div>
+                <div className="text-[10px] text-slate-500 uppercase tracking-widest">Looking directly at the camera</div>
               </div>
             )}
           </form>
-          
+
           <div className="mt-8 text-center text-slate-500 text-sm">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-            <button 
+            <button
               onClick={() => setIsLogin(!isLogin)}
               className="text-neon-400 font-bold hover:underline"
             >
@@ -405,9 +403,9 @@ const AuthPage = () => {
 
       {/* --- Footer Links for Mobile --- */}
       <div className="md:hidden p-8 flex justify-center gap-6 opacity-40 grayscale filter">
-         <Globe className="w-6 h-6 text-white" />
-         <ShieldCheck className="w-6 h-6 text-white" />
-         <Briefcase className="w-6 h-6 text-white" />
+        <Globe className="w-6 h-6 text-white" />
+        <ShieldCheck className="w-6 h-6 text-white" />
+        <Briefcase className="w-6 h-6 text-white" />
       </div>
     </div>
   );

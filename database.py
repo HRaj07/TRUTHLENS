@@ -48,7 +48,7 @@ def init_db():
     
     # Pre-fill Demo Users if they don't exist
     demo_users = [
-        ('1', 'Alex Johnson', 'alex@interviewer.com', 'demo123', 'interviewer', 'AJ', 'FAANG Corp'),
+        ('1', 'Alex Johnson', 'alex@interviewer.com', 'demo123', 'interviewer', 'AJ', 'Enterprise Corp'),
         ('2', 'Sam Williams', 'sam@candidate.com', 'demo123', 'candidate', 'SW', '')
     ]
     

@@ -5,7 +5,7 @@
 ---
 
 ## 🚀 The Vision
-In high-stakes interviews (FAANG/Big Tech), technical skills are only half the story. The candidate's **emotional intelligence (EQ)**, **communication stability**, and **stress management** often determine the final hire. TruthLens bridges the gap between subjective observation and objective data science.
+In high-stakes interviews (Top Tier/Big Tech), technical skills are only half the story. The candidate's **emotional intelligence (EQ)**, **communication stability**, and **stress management** often determine the final hire. TruthLens bridges the gap between subjective observation and objective data science.
 
 ## 🏗️ Technical Architecture
 
@@ -42,7 +42,7 @@ Our proprietary AI pipeline processes video frames in parallel to the interview 
 ## 🛠️ Development Setup
 
 ### Backend (FastAPI)
-1. Navigate to root: `cd TruthLens_FAANG`
+1. Navigate to root: `cd TruthLens`
 2. Create virtual environment: `python -m venv venv`
 3. Activate: `source venv/bin/activate` (Mac/Linux)
 4. Install dependencies: `pip install -r requirements.txt`
