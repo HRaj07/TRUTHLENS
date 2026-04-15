@@ -13,11 +13,25 @@ import urllib.parse
 # Let's handle it robustly.
 
 MONGO_URI = "mongodb+srv://2601harshitraj:Hr%40j2601@cluster0.ngidqsb.mongodb.net/?appName=Cluster0"
-client = MongoClient(MONGO_URI)
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    # The ismaster command is cheap and does not require auth.
+    client.admin.command('ping')
+    print("✅ MongoDB Connected Successfully!")
+except Exception as e:
+    print(f"❌ MongoDB Connection Failed: {e}")
+
 db = client.truthlens
 
 def init_db():
-    # MongoDB creates collections automatically
+    try:
+        # Check if we can write
+        db.command('ping')
+        print("✅ Database Layer Initialized")
+    except Exception as e:
+        print(f"❌ Database Initialization Failed: {e}")
+        return
+        
     # Pre-fill Demo Users if they don't exist
     demo_users = [
         {'id': '1', 'name': 'Alex Johnson', 'email': 'alex@interviewer.com', 'password': 'demo123', 'role': 'interviewer', 'avatar': 'AJ', 'company': 'Enterprise Corp'},
