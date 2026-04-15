@@ -13,6 +13,12 @@ const fastapiClient = axios.create({
   timeout: 15000,
 });
 
+// Separate client with longer timeout for Face ID (model download can take ~90s)
+const faceClient = axios.create({
+  baseURL: FASTAPI_BASE,
+  timeout: 120000,
+});
+
 const nodeClient = axios.create({
   baseURL: NODE_BASE,
   timeout: 10000,
@@ -29,6 +35,7 @@ const attachAuth = (config) => {
 };
 
 fastapiClient.interceptors.request.use(attachAuth);
+faceClient.interceptors.request.use(attachAuth);
 nodeClient.interceptors.request.use(attachAuth);
 
 // ============================================================
@@ -82,11 +89,11 @@ export const authAPI = {
     return res.data;
   },
   faceLogin: async (data) => {
-    const res = await fastapiClient.post('/api/auth/face-login', data);
+    const res = await faceClient.post('/api/auth/face-login', data);
     return res.data;
   },
   faceSignup: async (data) => {
-    const res = await fastapiClient.post('/api/auth/face-signup', data);
+    const res = await faceClient.post('/api/auth/face-signup', data);
     return res.data;
   },
   refresh: async (refreshToken) => null,

@@ -29,6 +29,20 @@ log = logging.getLogger("truthlens")
 app = FastAPI()
 database.init_db()
 
+# ── Pre-warm DeepFace Facenet model on startup ──────────────────
+import threading
+def prewarm_deepface():
+    try:
+        import numpy as np
+        dummy = np.zeros((100, 100, 3), dtype=np.uint8)
+        log.info("Pre-warming Facenet model (this downloads ~92MB once)...")
+        DeepFace.represent(dummy, model_name="Facenet", detector_backend="skip", enforce_detection=False)
+        log.info("✅ Facenet model pre-warmed and cached! Face login will now be fast.")
+    except Exception as e:
+        log.error(f"Pre-warm failed (non-critical): {e}")
+
+threading.Thread(target=prewarm_deepface, daemon=True).start()
+
 # ── CORS ──────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
