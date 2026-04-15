@@ -70,16 +70,22 @@ const AuthPage = () => {
   const navigate = useNavigate();
 
   // Auto-scan polling for Face ID Login
+  const isScanningRef = React.useRef(false); // prevent concurrent requests
+
   React.useEffect(() => {
     let intervalId;
     let isMounted = true;
 
     if (isLogin && authMode === 'face' && !authError && !isSubmitting) {
       intervalId = setInterval(async () => {
+        // CRITICAL: Skip if a previous request is still in flight
+        if (isScanningRef.current) return;
+
         try {
           const image = captureFace();
           if (!image) return;
 
+          isScanningRef.current = true;
           const btnStatus = document.getElementById('auto-scan-status');
           if (btnStatus) btnStatus.innerText = "Analyzing Face...";
 
@@ -93,15 +99,25 @@ const AuthPage = () => {
             navigate(role === 'interviewer' ? '/dashboard/interviewer' : '/dashboard/candidate');
           }
         } catch (err) {
-          // Silently ignore failed matches and keep scanning
+          if (!isMounted) return;
           const btnStatus = document.getElementById('auto-scan-status');
-          if (btnStatus) btnStatus.innerText = "No match. Holding for stable image...";
+          // Handle model still loading
+          if (err.message && err.message.includes('MODEL_LOADING')) {
+            if (btnStatus) btnStatus.innerText = "⏳ Engine starting up... (~60s)";
+          } else if (err.message && err.message.includes('Face recognition engine is starting')) {
+            if (btnStatus) btnStatus.innerText = "⏳ Engine starting up... (~60s)";
+          } else {
+            if (btnStatus) btnStatus.innerText = "No match. Hold still...";
+          }
+        } finally {
+          isScanningRef.current = false;
         }
       }, 3000);
     }
 
     return () => {
       isMounted = false;
+      isScanningRef.current = false;
       if (intervalId) clearInterval(intervalId);
     };
   }, [isLogin, authMode, authError, isSubmitting, role, navigate, redirectParams, faceLogin]);

@@ -71,7 +71,14 @@ export function AuthProvider({ children }) {
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(finalUser));
       return finalUser;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message;
+      // Parse error from response body or message
+      const responseData = err.response?.data;
+      let msg;
+      if (responseData?.error === 'MODEL_LOADING') {
+        msg = 'MODEL_LOADING'; // Signal to UI to show "engine starting" message
+      } else {
+        msg = responseData?.message || responseData?.error || err.message || 'Face login failed.';
+      }
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -91,7 +98,14 @@ export function AuthProvider({ children }) {
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userData));
       return userData;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message;
+      const responseData = err.response?.data;
+      // Clean up the error message for "already exists" case
+      let msg = responseData?.error || err.message || 'Face signup failed.';
+      if (msg.includes('already exists')) {
+        msg = 'An account with this email already exists. Please use a different email or sign in instead.';
+      } else if (msg.startsWith('Face Setup Failed: ')) {
+        msg = msg.replace('Face Setup Failed: ', '');
+      }
       setError(msg);
       throw new Error(msg);
     } finally {

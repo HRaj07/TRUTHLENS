@@ -31,17 +31,26 @@ database.init_db()
 
 # ── Pre-warm DeepFace Facenet model on startup ──────────────────
 import threading
+model_ready = False
+
 def prewarm_deepface():
+    global model_ready
     try:
         import numpy as np
         dummy = np.zeros((100, 100, 3), dtype=np.uint8)
         log.info("Pre-warming Facenet model (this downloads ~92MB once)...")
         DeepFace.represent(dummy, model_name="Facenet", detector_backend="skip", enforce_detection=False)
+        model_ready = True
         log.info("✅ Facenet model pre-warmed and cached! Face login will now be fast.")
     except Exception as e:
+        model_ready = True  # Allow attempts even if pre-warm fails
         log.error(f"Pre-warm failed (non-critical): {e}")
 
 threading.Thread(target=prewarm_deepface, daemon=True).start()
+
+@app.get("/api/ready")
+def check_ready():
+    return {"ready": model_ready, "message": "Face engine ready" if model_ready else "Face engine is initializing, please wait 60 seconds..."}
 
 # ── CORS ──────────────────────────────────────────────────────
 app.add_middleware(
@@ -245,6 +254,9 @@ class FaceLoginRequest(BaseModel):
 async def face_login(req: FaceLoginRequest):
     from fastapi.responses import JSONResponse
     import traceback
+    
+    if not model_ready:
+        return JSONResponse(status_code=503, content={"error": "MODEL_LOADING", "message": "Face recognition engine is starting up. Please wait ~60 seconds and try again."})
     
     try:
         # Decode uploaded image
