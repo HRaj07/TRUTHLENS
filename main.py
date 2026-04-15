@@ -198,6 +198,12 @@ async def face_signup(req: FaceSignupRequest):
     try:
         # Decode and save face
         encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
+        
+        # Add necessary base64 padding
+        padding_needed = len(encoded_data) % 4
+        if padding_needed:
+            encoded_data += "=" * (4 - padding_needed)
+            
         img_data = base64.b64decode(encoded_data)
         
         os.makedirs("data/faces", exist_ok=True)
@@ -225,8 +231,16 @@ async def face_login(req: FaceLoginRequest):
     try:
         # Decode uploaded image
         encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
+        
+        padding_needed = len(encoded_data) % 4
+        if padding_needed:
+            encoded_data += "=" * (4 - padding_needed)
+
         nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
         img_to_verify = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if img_to_verify is None:
+            return JSONResponse(status_code=400, content={"error": "Invalid base64 payload. Image could not be decoded."})
 
         face_dir = "data/faces"
         if req.email and req.email.strip():
