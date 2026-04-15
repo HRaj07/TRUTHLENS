@@ -1,0 +1,17 @@
+node_modules/
+frontend/
+venv/
+.git/
+.vscode/
+__pycache__/
+*.pyc
+data/fer2013/
+data/RAF-DB/
+data/ravdess-emotional-speech-audio/
+.gitignore
+README.md
+train*.py
+data/faces/
+data/truthlens.db
+.pip_tmp/
+tmp/
