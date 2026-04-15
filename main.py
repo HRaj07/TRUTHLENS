@@ -204,6 +204,7 @@ async def face_signup(req: FaceSignupRequest):
         if padding_needed:
             encoded_data += "=" * (4 - padding_needed)
             
+        log.info(f"Face signup attempt for {req.email}")
         # We store the base64 string directly in MongoDB so it's persistent!
         random_pwd = secrets.token_hex(16)
         user = database.create_user(
@@ -215,6 +216,7 @@ async def face_signup(req: FaceSignupRequest):
             face_registered=1,
             face_image_base64=encoded_data # Store the processed base64
         )
+        log.info(f"User created in MongoDB: {req.email}")
         user["token"] = database.generate_token()
         return user
     except Exception as e:
@@ -272,18 +274,29 @@ async def face_login(req: FaceLoginRequest):
 
         else:
             # Completely identify from face matches by searching MongoDB
+            log.info("Starting global face identification from MongoDB...")
             records = database.get_all_face_records()
+            log.info(f"Found {len(records)} face records in MongoDB")
+            
             if not records:
-                return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet."})
+                return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet. Please perform a Face Signup first."})
 
             for rec in records:
                 try:
                     saved_face_b64 = rec["faceImageBase64"]
-                    if not saved_face_b64: continue
+                    if not saved_face_b64: 
+                        log.warning(f"Record for {rec['email']} has no face data")
+                        continue
 
+                    # Decode saved face
                     nparr_saved = np.frombuffer(base64.b64decode(saved_face_b64), np.uint8)
                     img_saved = cv2.imdecode(nparr_saved, cv2.IMREAD_COLOR)
 
+                    if img_saved is None:
+                        log.error(f"Failed to decode saved face for {rec['email']}")
+                        continue
+
+                    log.info(f"Verifying against: {rec['email']}")
                     res = DeepFace.verify(
                         img1_path=img_to_verify,
                         img2_path=img_saved,
@@ -291,8 +304,13 @@ async def face_login(req: FaceLoginRequest):
                         detector_backend="opencv",
                         enforce_detection=False
                     )
-                    log.info(f"Face verify vs {rec['email']}: {res}")
-                    if bool(res.get("verified", False)):
+                    
+                    verified = bool(res.get("verified", False))
+                    dist = res.get("distance", 1.0)
+                    log.info(f"Result for {rec['email']}: verified={verified}, distance={dist}")
+                    
+                    if verified:
+                        log.info(f"MATCH FOUND: {rec['email']}")
                         user = database.get_user_by_email_only(rec['email'])
                         if user:
                             user["token"] = database.generate_token()
