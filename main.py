@@ -300,7 +300,7 @@ async def face_login(req: FaceLoginRequest):
                     res = DeepFace.verify(
                         img1_path=img_to_verify,
                         img2_path=img_saved,
-                        model_name="VGG-Face", # More robust for webcams
+                        model_name="Facenet",
                         detector_backend="opencv",
                         enforce_detection=False
                     )
