@@ -204,15 +204,17 @@ async def face_signup(req: FaceSignupRequest):
         if padding_needed:
             encoded_data += "=" * (4 - padding_needed)
             
-        img_data = base64.b64decode(encoded_data)
-        
-        os.makedirs("data/faces", exist_ok=True)
-        face_path = f"data/faces/{req.email.lower()}.jpg"
-        with open(face_path, "wb") as f:
-            f.write(img_data)
-            
+        # We store the base64 string directly in MongoDB so it's persistent!
         random_pwd = secrets.token_hex(16)
-        user = database.create_user(req.name, req.email, random_pwd, req.role, req.company, face_registered=1)
+        user = database.create_user(
+            name=req.name, 
+            email=req.email, 
+            password=random_pwd, 
+            role=req.role, 
+            company=req.company, 
+            face_registered=1,
+            face_image_base64=encoded_data # Store the processed base64
+        )
         user["token"] = database.generate_token()
         return user
     except Exception as e:
@@ -246,13 +248,17 @@ async def face_login(req: FaceLoginRequest):
         if req.email and req.email.strip():
             # If email is somehow passed, do explicit check
             user = database.get_user_by_email_only(req.email)
-            if not user or not user.get("faceRegistered"):
+            if not user or not user.get("faceRegistered") or not user.get("faceImageBase64"):
                 return JSONResponse(status_code=400, content={"error": "No face registered for this email."})
             
-            saved_face_path = f"data/faces/{req.email.lower()}.jpg"
+            # Decode saved face from DB
+            saved_face_b64 = user["faceImageBase64"]
+            nparr_saved = np.frombuffer(base64.b64decode(saved_face_b64), np.uint8)
+            img_saved = cv2.imdecode(nparr_saved, cv2.IMREAD_COLOR)
+
             result = DeepFace.verify(
                 img1_path=img_to_verify, 
-                img2_path=saved_face_path, 
+                img2_path=img_saved, 
                 model_name="Facenet", 
                 detector_backend="opencv",
                 enforce_detection=False
@@ -265,31 +271,35 @@ async def face_login(req: FaceLoginRequest):
                 return JSONResponse(status_code=401, content={"error": "Face verification failed. Doesn't match records."})
 
         else:
-            # Completely identify from face matches by iterating over faces directory
-            if not os.path.exists(face_dir) or len(os.listdir(face_dir)) == 0:
+            # Completely identify from face matches by searching MongoDB
+            records = database.get_all_face_records()
+            if not records:
                 return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet."})
 
-            for filename in os.listdir(face_dir):
-                if filename.endswith(".jpg"):
-                    saved_face_path = os.path.join(face_dir, filename)
-                    try:
-                        res = DeepFace.verify(
-                            img1_path=img_to_verify,
-                            img2_path=saved_face_path,
-                            model_name="Facenet",
-                            detector_backend="opencv",
-                            enforce_detection=False
-                        )
-                        log.info(f"Face verify vs {filename}: {res}")
-                        if bool(res.get("verified", False)):
-                            email = filename[:-4] # strip .jpg
-                            user = database.get_user_by_email_only(email)
-                            if user and user.get("faceRegistered"):
-                                user["token"] = database.generate_token()
-                                return user
-                    except Exception as e:
-                        log.error(f"Error verifying vs {filename}: {e}")
-                        pass
+            for rec in records:
+                try:
+                    saved_face_b64 = rec["faceImageBase64"]
+                    if not saved_face_b64: continue
+
+                    nparr_saved = np.frombuffer(base64.b64decode(saved_face_b64), np.uint8)
+                    img_saved = cv2.imdecode(nparr_saved, cv2.IMREAD_COLOR)
+
+                    res = DeepFace.verify(
+                        img1_path=img_to_verify,
+                        img2_path=img_saved,
+                        model_name="Facenet",
+                        detector_backend="opencv",
+                        enforce_detection=False
+                    )
+                    log.info(f"Face verify vs {rec['email']}: {res}")
+                    if bool(res.get("verified", False)):
+                        user = database.get_user_by_email_only(rec['email'])
+                        if user:
+                            user["token"] = database.generate_token()
+                            return user
+                except Exception as e:
+                    log.error(f"Error verifying vs {rec['email']}: {e}")
+                    pass
                         
             return JSONResponse(status_code=401, content={"error": "Face not recognized. Please sign up or try again."})
              

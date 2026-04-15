@@ -1,97 +1,78 @@
-import sqlite3
 import os
 import json
 import hashlib
 import secrets
 from datetime import datetime
+from pymongo import MongoClient
+import urllib.parse
 
-DB_PATH = "data/truthlens.db"
+# MongoDB Connection
+# The password "Hr@j2601" needs to be URL encoded if it contains special characters like @
+# Hr@j2601 -> Hr%40j2601
+# But the user provided Hr@j2601 in the format mongodb+srv://2601harshitraj:Hr@j2601@cluster0...
+# Let's handle it robustly.
+
+MONGO_URI = "mongodb+srv://2601harshitraj:Hr%40j2601@cluster0.ngidqsb.mongodb.net/?appName=Cluster0"
+client = MongoClient(MONGO_URI)
+db = client.truthlens
 
 def init_db():
-    os.makedirs("data", exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    # Users table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id TEXT PRIMARY KEY,
-            name TEXT,
-            email TEXT UNIQUE,
-            password_hash TEXT,
-            role TEXT,
-            avatar TEXT,
-            company TEXT,
-            created_at TEXT,
-            face_registered INTEGER DEFAULT 0
-        )
-    ''')
-    try:
-        c.execute('ALTER TABLE users ADD COLUMN face_registered INTEGER DEFAULT 0')
-    except sqlite3.OperationalError:
-        pass
-    # Sessions table
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS sessions (
-            code TEXT PRIMARY KEY,
-            session_id TEXT,
-            created_at TEXT,
-            status TEXT,
-            candidate TEXT,
-            position TEXT,
-            interviewer TEXT,
-            duration INTEGER,
-            scores TEXT,
-            report TEXT,
-            dominant_emotion TEXT
-        )
-    ''')
-    
+    # MongoDB creates collections automatically
     # Pre-fill Demo Users if they don't exist
     demo_users = [
-        ('1', 'Alex Johnson', 'alex@interviewer.com', 'demo123', 'interviewer', 'AJ', 'Enterprise Corp'),
-        ('2', 'Sam Williams', 'sam@candidate.com', 'demo123', 'candidate', 'SW', '')
+        {'id': '1', 'name': 'Alex Johnson', 'email': 'alex@interviewer.com', 'password': 'demo123', 'role': 'interviewer', 'avatar': 'AJ', 'company': 'Enterprise Corp'},
+        {'id': '2', 'name': 'Sam Williams', 'email': 'sam@candidate.com', 'password': 'demo123', 'role': 'candidate', 'avatar': 'SW', 'company': ''}
     ]
     
-    for uid, name, email, password, role, avatar, company in demo_users:
-        if not _user_exists_raw(c, email):
-            c.execute('''
-                INSERT INTO users (id, name, email, password_hash, role, avatar, company, created_at, face_registered)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)
-            ''', (uid, name, email, hash_password(password), role, avatar, company, datetime.now().isoformat()))
-
-    conn.commit()
-    conn.close()
-
-def _user_exists_raw(cursor, email):
-    cursor.execute('SELECT id FROM users WHERE email = ?', (email.lower(),))
-    return cursor.fetchone() is not None
+    for user_data in demo_users:
+        email = user_data['email'].lower()
+        if not db.users.find_one({'email': email}):
+            user_doc = {
+                'id': user_data['id'],
+                'name': user_data['name'],
+                'email': email,
+                'password_hash': hash_password(user_data['password']),
+                'role': user_data['role'],
+                'avatar': user_data['avatar'],
+                'company': user_data['company'],
+                'created_at': datetime.now().isoformat(),
+                'face_registered': 0,
+                'face_image_base64': None
+            }
+            db.users.insert_one(user_doc)
 
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode('utf-8')).hexdigest()
 
-def create_user(name, email, password, role, company="", user_id=None, face_registered=0):
+def create_user(name, email, password, role, company="", user_id=None, face_registered=0, face_image_base64=None):
     uid = user_id if user_id else str(int(datetime.now().timestamp() * 1000))
+    email_lower = email.lower()
+    
+    if db.users.find_one({'email': email_lower}):
+        raise Exception("An account with this email already exists.")
+        
     pwd_hash = hash_password(password)
     avatar = "".join([p[0] for p in name.strip().split()]).upper()[:2]
     created_at = datetime.now().isoformat()
     
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    try:
-        c.execute('''
-            INSERT INTO users (id, name, email, password_hash, role, avatar, company, created_at, face_registered)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (uid, name, email.lower(), pwd_hash, role, avatar, company, created_at, face_registered))
-        conn.commit()
-    except sqlite3.IntegrityError:
-        conn.close()
-        raise Exception("An account with this email already exists.")
-    conn.close()
+    user_doc = {
+        'id': uid,
+        'name': name,
+        'email': email_lower,
+        'password_hash': pwd_hash,
+        'role': role,
+        'avatar': avatar,
+        'company': company,
+        'created_at': created_at,
+        'face_registered': face_registered,
+        'face_image_base64': face_image_base64
+    }
+    db.users.insert_one(user_doc)
     
     return {
         "id": uid,
         "name": name,
-        "email": email.lower(),
+        "email": email_lower,
         "role": role,
         "avatar": avatar,
         "company": company,
@@ -99,123 +80,119 @@ def create_user(name, email, password, role, company="", user_id=None, face_regi
     }
 
 def get_user_by_email_and_password(email, password):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT id, name, email, role, avatar, company, created_at, face_registered FROM users WHERE email = ? AND password_hash = ?', 
-              (email.lower(), hash_password(password)))
-    row = c.fetchone()
-    conn.close()
-    if row:
+    user = db.users.find_one({
+        'email': email.lower(),
+        'password_hash': hash_password(password)
+    })
+    if user:
         return {
-            "id": row[0],
-            "name": row[1],
-            "email": row[2],
-            "role": row[3],
-            "avatar": row[4],
-            "company": row[5],
-            "createdAt": row[6],
-            "faceRegistered": bool(row[7])
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email'],
+            "role": user['role'],
+            "avatar": user['avatar'],
+            "company": user.get('company', ''),
+            "createdAt": user['created_at'],
+            "faceRegistered": bool(user.get('face_registered', 0))
         }
     return None
 
 def get_user_by_email_only(email):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT id, name, email, role, avatar, company, created_at, face_registered FROM users WHERE email = ?', 
-              (email.lower(),))
-    row = c.fetchone()
-    conn.close()
-    if row:
+    user = db.users.find_one({'email': email.lower()})
+    if user:
         return {
-            "id": row[0],
-            "name": row[1],
-            "email": row[2],
-            "role": row[3],
-            "avatar": row[4],
-            "company": row[5],
-            "createdAt": row[6],
-            "faceRegistered": bool(row[7])
+            "id": user['id'],
+            "name": user['name'],
+            "email": user['email'],
+            "role": user['role'],
+            "avatar": user['avatar'],
+            "company": user.get('company', ''),
+            "createdAt": user['created_at'],
+            "faceRegistered": bool(user.get('face_registered', 0)),
+            "faceImageBase64": user.get('face_image_base64')
         }
     return None
+
+def get_all_face_records():
+    """Returns a list of users with registered faces for global identification"""
+    users = db.users.find({'face_registered': 1})
+    records = []
+    for u in users:
+        records.append({
+            'email': u['email'],
+            'faceImageBase64': u.get('face_image_base64')
+        })
+    return records
 
 def generate_token():
     return secrets.token_hex(32)
 
 def create_session(code, session_id, position, interviewer):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO sessions (code, session_id, created_at, status, candidate, position, interviewer)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (code, session_id, datetime.now().isoformat(), 'active', 'Pending', position, interviewer))
-    conn.commit()
-    conn.close()
+    session_doc = {
+        'code': code.upper(),
+        'session_id': session_id,
+        'created_at': datetime.now().isoformat(),
+        'status': 'active',
+        'candidate': 'Pending',
+        'position': position,
+        'interviewer': interviewer,
+        'duration': 0,
+        'scores': None,
+        'report': None,
+        'dominant_emotion': 'neutral'
+    }
+    db.sessions.insert_one(session_doc)
 
 def get_session(code):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT * FROM sessions WHERE code = ?', (code.upper(),))
-    row = c.fetchone()
-    conn.close()
-    if row:
+    session = db.sessions.find_one({'code': code.upper()})
+    if session:
         return {
-            "sessionCode": row[0],
-            "sessionId": row[1],
-            "createdAt": row[2],
-            "status": row[3],
-            "candidate": row[4],
-            "position": row[5],
-            "interviewer": row[6],
-            "duration": row[7],
-            "scores": json.loads(row[8]) if row[8] else None,
-            "report": json.loads(row[9]) if row[9] else None,
-            "dominantEmotion": row[10]
+            "sessionCode": session['code'],
+            "sessionId": session['session_id'],
+            "createdAt": session['created_at'],
+            "status": session['status'],
+            "candidate": session['candidate'],
+            "position": session['position'],
+            "interviewer": session['interviewer'],
+            "duration": session.get('duration', 0),
+            "scores": session.get('scores'),
+            "report": session.get('report'),
+            "dominantEmotion": session.get('dominant_emotion', 'neutral')
         }
     return None
 
 def get_all_sessions():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('SELECT * FROM sessions ORDER BY created_at DESC')
-    rows = c.fetchall()
-    conn.close()
-    
+    sessions_cursor = db.sessions.find().sort('created_at', -1)
     sessions = []
-    for row in rows:
+    for s in sessions_cursor:
         sessions.append({
-            "sessionCode": row[0],
-            "sessionId": row[1],
-            "createdAt": row[2],
-            "status": row[3],
-            "candidate": row[4],
-            "position": row[5],
-            "interviewer": row[6],
-            "duration": row[7],
-            "scores": json.loads(row[8]) if row[8] else None,
-            "report": json.loads(row[9]) if row[9] else None,
-            "dominantEmotion": row[10]
+            "sessionCode": s['code'],
+            "sessionId": s['session_id'],
+            "createdAt": s['created_at'],
+            "status": s['status'],
+            "candidate": s['candidate'],
+            "position": s['position'],
+            "interviewer": s['interviewer'],
+            "duration": s.get('duration', 0),
+            "scores": s.get('scores'),
+            "report": s.get('report'),
+            "dominantEmotion": s.get('dominant_emotion', 'neutral')
         })
     return sessions
 
 def update_session_candidate(code, candidate_name):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('UPDATE sessions SET candidate = ?, status = ? WHERE code = ?', 
-              (candidate_name, 'active', code.upper()))
-    conn.commit()
-    conn.close()
+    db.sessions.update_one(
+        {'code': code.upper()},
+        {'$set': {'candidate': candidate_name, 'status': 'active'}}
+    )
 
 def save_session_results(code, results):
-    scores_json = json.dumps(results.get("aggregateStats", {}))
-    report_json = json.dumps(results)
-    dominant_emotion = results.get("aggregateStats", {}).get("dominantEmotion")
-    
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''
-        UPDATE sessions 
-        SET status = ?, scores = ?, report = ?, dominant_emotion = ?
-        WHERE code = ?
-    ''', ('completed', scores_json, report_json, dominant_emotion, code.upper()))
-    conn.commit()
-    conn.close()
+    db.sessions.update_one(
+        {'code': code.upper()},
+        {'$set': {
+            'status': 'completed',
+            'scores': results.get("aggregateStats", {}),
+            'report': results,
+            'dominant_emotion': results.get("aggregateStats", {}).get("dominantEmotion", 'neutral')
+        }}
+    )

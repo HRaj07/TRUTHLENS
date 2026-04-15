@@ -22,3 +22,5 @@ reportlab>=4.0.0
 
 # Utilities
 python-dotenv>=1.0.0
+pymongo[srv]>=4.6.0
+dnspython>=2.6.0
