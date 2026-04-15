@@ -5,9 +5,9 @@ FROM python:3.10-slim
 WORKDIR /app
 
 # Install system dependencies
-# libgl1-mesa-glx and libglib2.0-0 are required for OpenCV
+# libgl1 and libglib2.0-0 are required for OpenCV
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+    libgl1 \
     libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 

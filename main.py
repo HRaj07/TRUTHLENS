@@ -266,6 +266,7 @@ async def face_login(req: FaceLoginRequest):
                             detector_backend="opencv",
                             enforce_detection=False
                         )
+                        log.info(f"Face verify vs {filename}: {res}")
                         if bool(res.get("verified", False)):
                             email = filename[:-4] # strip .jpg
                             user = database.get_user_by_email_only(email)
@@ -273,6 +274,7 @@ async def face_login(req: FaceLoginRequest):
                                 user["token"] = database.generate_token()
                                 return user
                     except Exception as e:
+                        log.error(f"Error verifying vs {filename}: {e}")
                         pass
                         
             return JSONResponse(status_code=401, content={"error": "Face not recognized. Please sign up or try again."})

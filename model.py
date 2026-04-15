@@ -4,6 +4,15 @@ import logging
 
 log = logging.getLogger("truthlens")
 
+# ── Try to load New Model (CNN-LSTM / MLX / Keras) ─────────────────────────
+_new_model_available = False
+try:
+    from ai_engine.predictor import predict as new_model_predict
+    _new_model_available = True
+    log.info("✅ New model (CNN-LSTM predictor) is ready")
+except Exception as e:
+    log.error(f"⚠️ New model not available: {e}")
+
 # ── Try to load enhanced model (FER + MediaPipe) ──────────────────────────────
 _enhanced_available = False
 try:
@@ -22,7 +31,7 @@ _tf_available = False
 try:
     import os
     from tensorflow.keras.models import load_model as _tf_load
-    _MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "emotion_model.h5")
+    _MODEL_PATH = os.path.join(os.path.dirname(__file__), "model", "emotion_model_best.keras")
     if os.path.exists(_MODEL_PATH):
         log.info("🧠 Loading legacy TF model …")
         _model        = _tf_load(_MODEL_PATH)
@@ -36,19 +45,32 @@ except Exception as exc:
 
 def predict_emotion_from_frame(frame, return_probs=False):
     """
-    PRIMARY path — call this with a raw BGR frame.
-    Uses FER pre-trained CNN (via enhanced_model) for real emotion detection.
+    PRIMARY path: Attempt new model (CNN-LSTM) first.
+    FALLBACK: Uses FER pre-trained CNN (via enhanced_model) for real emotion detection.
     """
+    # 1. Try New CNN-LSTM Model
+    if _new_model_available:
+        try:
+            probs = new_model_predict(frame)
+            if probs is not None:
+                if return_probs:
+                    return probs
+                return EMOTION_LABELS[int(np.argmax(probs))]
+        except Exception as e:
+            log.error(f"New model prediction failed: {e}")
+
+    # 2. Fallback to Enhanced Model (DeepFace)
     if _enhanced_available:
         try:
             probs = get_enhanced_prediction(frame)
-            if return_probs:
-                return probs
-            return EMOTION_LABELS[int(np.argmax(probs))]
+            if probs is not None:
+                if return_probs:
+                    return probs
+                return EMOTION_LABELS[int(np.argmax(probs))]
         except Exception as e:
             log.error(f"Enhanced prediction failed: {e}")
 
-    # Fallback: pure random with EQUAL chance across all 7 emotions
+    # 3. Default fallback: pure random
     return _random_all_emotions(return_probs)
 
 

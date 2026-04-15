@@ -8,7 +8,7 @@ from utils.report import generate_report
 name = sys.argv[1] if len(sys.argv) > 1 else "Candidate"
 code = sys.argv[2] if len(sys.argv) > 2 else "NA"
 
-model = load_model("model/emotion_model.h5")
+model = load_model("model/emotion_model_best.keras")
 labels = ['angry','disgust','fear','happy','neutral','sad','surprise']
 
 cap = cv2.VideoCapture(0)
