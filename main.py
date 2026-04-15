@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect, Body
 from fastapi.middleware.cors import CORSMiddleware
 import numpy as np
 import cv2
@@ -33,7 +33,7 @@ database.init_db()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -291,7 +291,7 @@ def home():
     return {"status": "Backend running", "rooms": list(room_manager.rooms.keys())}
 
 @app.post("/api/sessions/create")
-async def create_session(metadata: dict = None):
+async def create_session(metadata: dict = Body(default={})):
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     code = ''.join(random.choices(chars, k=6))
     # Note: simple loop assuming no infinite collision
@@ -307,7 +307,7 @@ async def create_session(metadata: dict = None):
     return database.get_session(code)
 
 @app.post("/api/sessions/validate")
-async def validate_session(data: dict):
+async def validate_session(data: dict = Body(...)):
     code = data.get("code", "").upper().strip()
     session = database.get_session(code)
     if session:
@@ -327,7 +327,7 @@ async def get_session(code: str):
     return {"error": "Session not found"}
 
 @app.post("/api/sessions/{code}/results")
-async def save_session_results(code: str, results: dict):
+async def save_session_results(code: str, results: dict = Body(...)):
     code = code.upper().strip()
     session = database.get_session(code)
     if session:

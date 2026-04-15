@@ -10,7 +10,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 //  is always current without triggering a re-run.
 // ============================================================
 
-const WS_BASE = process.env.REACT_APP_WS_URL || 'ws://127.0.0.1:8000';
+const apiBase = process.env.REACT_APP_FASTAPI_URL || 'http://127.0.0.1:8000';
+const WS_BASE = process.env.REACT_APP_WS_URL || apiBase.replace(/^http/, 'ws');
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
