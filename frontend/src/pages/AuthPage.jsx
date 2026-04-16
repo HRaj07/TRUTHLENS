@@ -78,13 +78,7 @@ const AuthPage = () => {
 
     if (isLogin && authMode === 'face' && !authError && !isSubmitting) {
       intervalId = setInterval(async () => {
-        // CRITICAL: Skip if a previous request is still in flight OR email is missing
         if (isScanningRef.current) return;
-        if (!formData.email || !formData.email.includes('@')) {
-           const btnStatus = document.getElementById('auto-scan-status');
-           if (btnStatus) btnStatus.innerText = "Enter email to start scan";
-           return;
-        }
 
         try {
           const image = captureFace();
@@ -94,7 +88,7 @@ const AuthPage = () => {
           const btnStatus = document.getElementById('auto-scan-status');
           if (btnStatus) btnStatus.innerText = "Analyzing Face...";
 
-          await faceLogin(image, role, formData.email);
+          await faceLogin(image, role);
 
           if (!isMounted) return;
 
@@ -152,8 +146,7 @@ const AuthPage = () => {
         const image = captureFace();
         if (!image) throw new Error("Could not capture face image.");
         if (isLogin) {
-          if (!formData.email) throw new Error("Please enter your email for Face ID verification.");
-          await faceLogin(image, role, formData.email);
+          await faceLogin(image, role);
         } else {
           await faceSignup({ ...formData, role, image });
         }
@@ -326,10 +319,9 @@ const AuthPage = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-
             {(
-              /* Email is required for all signups AND password logins AND Face ID logins on Production Render tier */
-              !isLogin || authMode === 'password' || (isLogin && authMode === 'face')
+              /* Email is required for all signups AND password logins (but NOT Face ID login anymore) */
+              !isLogin || authMode === 'password'
             ) && (
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Email Address</label>

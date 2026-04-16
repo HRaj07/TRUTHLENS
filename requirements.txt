@@ -1,5 +1,10 @@
-# ── PRESENTATION MODE: Lightweight Production Requirements ──
-# This file is stripped of heavy AI libraries to ensure 100% uptime on Render.
+# ── PRODUCTION MODE: Full AI Emotion Detection ──
+# This file includes heavy AI libraries for high-accuracy emotion analysis.
+
+# AI Engines
+deepface>=0.0.86
+tensorflow>=2.15.0
+mediapipe>=0.10.0
 
 # Core
 fastapi>=0.110.0

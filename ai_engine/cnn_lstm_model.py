@@ -1,17 +1,6 @@
 """
-TruthLens Emotion Recognition — Improved CNN-LSTM with SE Attention
+TruthLens Emotion Recognition — CNN-LSTM with SE Attention
 ====================================================================
-Architecture Upgrades over v1:
-  [1] Squeeze-Excitation (SE) blocks in every CNN block
-      → Recalibrates which feature maps matter per frame
-  [2] Temporal Attention over BiLSTM outputs
-      → Focuses on emotionally salient frames (peak expressions)
-  [3] Reduced L2 regularization (0.001 → 0.0005) + label smoothing in training
-      → More appropriate for small datasets; prevents under-fitting
-  [4] Removed Block 3 (256-filter) — too many params for 67 videos
-      → Reduces overfitting risk dramatically
-  [5] Depth-wise separable convolutions in Block 2
-      → Faster + fewer parameters while keeping representational power
 
 Input:  (batch, seq_len, 48, 48, 1)
 Output: (batch, 7)  — softmax probabilities over 7 emotion classes
@@ -45,7 +34,6 @@ def _build_cnn_backbone(img_size=48, channels=1):
     Builds a lightweight CNN feature extractor WITH SE attention blocks.
     This is wrapped in TimeDistributed to process each video frame.
 
-    Reduced to 2 blocks to avoid overfitting on the small RAVDESS subset.
     """
     inp = layers.Input(shape=(img_size, img_size, channels), name='frame_input')
 

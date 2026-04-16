@@ -128,13 +128,20 @@ def get_user_by_email_only(email):
     return None
 
 def get_all_face_records():
-    """Returns a list of users with registered faces for global identification"""
+    """Returns a list of all users with registered faces for global identification"""
     users = db.users.find({'face_registered': 1})
     records = []
     for u in users:
         records.append({
-            'email': u['email'],
-            'faceImageBase64': u.get('face_image_base64')
+            "id": u['id'],
+            "name": u['name'],
+            "email": u['email'],
+            "role": u['role'],
+            "avatar": u['avatar'],
+            "company": u.get('company', ''),
+            "createdAt": u['created_at'],
+            "faceRegistered": True,
+            "faceImageBase64": u.get('face_image_base64')
         })
     return records
 

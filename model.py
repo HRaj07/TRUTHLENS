@@ -45,21 +45,10 @@ except Exception as exc:
 
 def predict_emotion_from_frame(frame, return_probs=False):
     """
-    PRIMARY path: Attempt new model (CNN-LSTM) first.
-    FALLBACK: Uses FER pre-trained CNN (via enhanced_model) for real emotion detection.
+    PRIMARY path: Attempt Enhanced Model (DeepFace) first as requested.
+    FALLBACK: Uses new CNN-LSTM/MLX model if DeepFace is unavailable.
     """
-    # 1. Try New CNN-LSTM Model
-    if _new_model_available:
-        try:
-            probs = new_model_predict(frame)
-            if probs is not None:
-                if return_probs:
-                    return probs
-                return EMOTION_LABELS[int(np.argmax(probs))]
-        except Exception as e:
-            log.error(f"New model prediction failed: {e}")
-
-    # 2. Fallback to Enhanced Model (DeepFace)
+    # 1. Try Enhanced Model (DeepFace)
     if _enhanced_available:
         try:
             probs = get_enhanced_prediction(frame)
@@ -69,6 +58,17 @@ def predict_emotion_from_frame(frame, return_probs=False):
                 return EMOTION_LABELS[int(np.argmax(probs))]
         except Exception as e:
             log.error(f"Enhanced prediction failed: {e}")
+
+    # 2. Fallback to New CNN-LSTM Model
+    if _new_model_available:
+        try:
+            probs = new_model_predict(frame)
+            if probs is not None:
+                if return_probs:
+                    return probs
+                return EMOTION_LABELS[int(np.argmax(probs))]
+        except Exception as e:
+            log.error(f"New model prediction failed: {e}")
 
     # 3. Default fallback: pure random
     return _random_all_emotions(return_probs)

@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 import base64
 import secrets
-# from deepface import DeepFace # Removed for stability
+from deepface import DeepFace 
 
 from model import predict_emotion, predict_emotion_from_frame, EMOTION_LABELS
 from scoring import compute_scores
@@ -29,16 +29,24 @@ log = logging.getLogger("truthlens")
 app = FastAPI()
 database.init_db()
 
-# ── PRESENTATION MODE: Stable Backend ────────────────────────────
-# We have switched to a lightweight presentation mode to bypass
-# heavy AI dependencies (TensorFlow/DeepFace) that cause timeouts.
-model_ready = True 
+# ── PRODUCTION MODE: Live AI Engine ──────────────────────────
+# DeepFace and TensorFlow are now active for high-accuracy analysis.
+model_ready = False # Set to False initially if pre-warming is needed
 
 def prewarm_deepface():
-    log.info("🚀 Presentation Mode Active: Face ID Engine is Virtual & Stable.")
+    try:
+        log.info("🚀 Production Mode Active: Initializing Face ID Engine...")
+        # Warm up dummy
+        _dummy = np.zeros((224, 224, 3), dtype=np.uint8)
+        DeepFace.analyze(_dummy, actions=['emotion'], enforce_detection=False)
+        global model_ready
+        model_ready = True
+        log.info("✅ Face ID Engine is Ready and Stable.")
+    except Exception as e:
+        log.error(f"❌ Face ID Engine failed to initialize: {e}")
 
-#threading.Thread(target=prewarm_deepface, daemon=True).start()
-prewarm_deepface()
+import threading
+threading.Thread(target=prewarm_deepface, daemon=True).start()
 
 
 @app.get("/api/ready")
@@ -240,31 +248,56 @@ def face_signup(req: FaceSignupRequest):
         return JSONResponse(status_code=400, content={"error": f"Face Setup Failed: {str(e)}"})
 
 class FaceLoginRequest(BaseModel):
-    email: str = None
     image: str
 
 @app.post("/api/auth/face-login")
 def face_login(req: FaceLoginRequest):
     from fastapi.responses import JSONResponse
     import traceback
-    
+
     try:
-        if req.email and req.email.strip():
-            log.info(f"PRESENTATION MODE: Fast Face Login for {req.email}")
-            user = database.get_user_by_email_only(req.email)
-            if not user:
-                return JSONResponse(status_code=400, content={"error": "No user found with this email."})
-            
-            # MOCKED VERIFICATION: Always succeeds if the record exists
-            log.info(f"✅ Auto-verified face for {req.email}")
-            user["token"] = database.generate_token()
-            return user
-        else:
-             return JSONResponse(status_code=400, content={"error": "Email is required for Face ID verification in Presentation Mode."})
+        log.info("🔍 Global Face Search initiated...")
+        records = database.get_all_face_records()
+        if not records:
+            return JSONResponse(status_code=404, content={"error": "No registered faces found in database."})
+
+        # Iterate and find best match
+        best_match = None
+        min_distance = 1.0 # Cosine distance threshold is usually 0.4 for VGG-Face
+        
+        # Use VGG-Face (default) - reliable for global search
+        for rec in records:
+            try:
+                db_image = f"data:image/jpeg;base64,{rec['faceImageBase64']}"
+                
+                res = DeepFace.verify(
+                    img1_path=req.image, 
+                    img2_path=db_image,
+                    enforce_detection=False,
+                    detector_backend='opencv'
+                )
+                
+                distance = res.get("distance", 1.0)
+                if res.get("verified") and distance < min_distance:
+                    min_distance = distance
+                    best_match = rec
+                    # If we find a very strong match, we can stop early
+                    if distance < 0.25:
+                        break
+            except Exception:
+                continue
+
+        if best_match:
+            log.info(f"✨ Global Match Found! User: {best_match['email']} (dist: {min_distance:.3f})")
+            best_match["token"] = database.generate_token()
+            best_match.pop("faceImageBase64", None)
+            return best_match
+        
+        return JSONResponse(status_code=401, content={"error": "No matching face found. Please try again or use password login."})
              
     except Exception as e:
         log.error(f"Face verify error: {traceback.format_exc()}")
-        return JSONResponse(status_code=500, content={"error": f"Face Login Failed: {str(e)}"})
+        return JSONResponse(status_code=500, content={"error": "Face Login Failed (Global Search error)."})
 
 latest_result = {"stress": 0, "confidence": 0, "truth": 0}
 latest_distribution = {}
