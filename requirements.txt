@@ -4,6 +4,7 @@
 # AI Engines
 deepface>=0.0.86
 tensorflow-cpu>=2.15.0
+tf-keras
 mediapipe>=0.10.0
 
 # Core
