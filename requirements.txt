@@ -1,30 +1,23 @@
-# ── TruthLens FastAPI Backend Dependencies (Render/Linux Compatible) ──
-# Core framework
+# ── PRESENTATION MODE: Lightweight Production Requirements ──
+# This file is stripped of heavy AI libraries to ensure 100% uptime on Render.
+
+# Core
 fastapi>=0.110.0
 uvicorn[standard]>=0.29.0
 python-multipart>=0.0.9
 
-# WebSocket support
+# Async / WebSocket
 websockets>=12.0
 
-# Data / Vision
+# Database
+pymongo[srv]>=4.6.0
+dnspython>=2.6.0
+
+# Image / Utilities
 numpy>=1.24.0
 opencv-python-headless>=4.8.0
 Pillow>=9.0.0
-
-# AI model — DeepFace for face verification (brings its own tf-lite internally)
-deepface>=0.0.99
-
-# NOTE: tensorflow and mediapipe are intentionally excluded from this
-# production requirements file. They are too large (>1GB) for Render's
-# free tier 512MB RAM. DeepFace on Render will use its lightweight
-# tf-keras backend automatically.
-tf-keras>=2.15.0
-
-# PDF generation
-reportlab>=4.0.0
-
-# Utilities
 python-dotenv>=1.0.0
-pymongo[srv]>=4.6.0
-dnspython>=2.6.0
+
+# PDF
+reportlab>=4.0.0

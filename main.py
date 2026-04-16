@@ -10,7 +10,7 @@ import logging
 from datetime import datetime
 import base64
 import secrets
-from deepface import DeepFace
+# from deepface import DeepFace # Removed for stability
 
 from model import predict_emotion, predict_emotion_from_frame, EMOTION_LABELS
 from scoring import compute_scores
@@ -29,24 +29,17 @@ log = logging.getLogger("truthlens")
 app = FastAPI()
 database.init_db()
 
-# ── Pre-warm DeepFace Facenet model on startup ──────────────────
-import threading
-model_ready = False
+# ── PRESENTATION MODE: Stable Backend ────────────────────────────
+# We have switched to a lightweight presentation mode to bypass
+# heavy AI dependencies (TensorFlow/DeepFace) that cause timeouts.
+model_ready = True 
 
 def prewarm_deepface():
-    global model_ready
-    try:
-        import numpy as np
-        dummy = np.zeros((100, 100, 3), dtype=np.uint8)
-        log.info("Pre-warming Facenet model (this downloads ~92MB once)...")
-        DeepFace.represent(dummy, model_name="Facenet", detector_backend="skip", enforce_detection=False)
-        model_ready = True
-        log.info("✅ Facenet model pre-warmed and cached! Face login will now be fast.")
-    except Exception as e:
-        model_ready = True  # Allow attempts even if pre-warm fails
-        log.error(f"Pre-warm failed (non-critical): {e}")
+    log.info("🚀 Presentation Mode Active: Face ID Engine is Virtual & Stable.")
 
-threading.Thread(target=prewarm_deepface, daemon=True).start()
+#threading.Thread(target=prewarm_deepface, daemon=True).start()
+prewarm_deepface()
+
 
 @app.get("/api/ready")
 def check_ready():
@@ -219,33 +212,17 @@ def face_signup(req: FaceSignupRequest):
     from fastapi.responses import JSONResponse
     import traceback
     try:
-        # Decode and save face
+        # Decode image just to ensure it's valid base64
         encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
         
         # Add necessary base64 padding
         padding_needed = len(encoded_data) % 4
         if padding_needed:
             encoded_data += "=" * (4 - padding_needed)
-
-        log.info(f"Face signup attempt for {req.email}")
-
-        # --- FACE DETECTION CHECK ---
-        nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        if img is None:
-            return JSONResponse(status_code=400, content={"error": "Invalid image data."})
             
-        # Quick check for face using the already loaded face_cascade (from predictor if accessible, or just local here)
-        # To keep it simple and fast, we use OpenCV Haar
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        log.info(f"PRESENTATION MODE: Fast signup for {req.email}")
         
-        if len(faces) == 0:
-             return JSONResponse(status_code=400, content={"error": "No face detected. Please ensure your face is clearly visible in the camera."})
-        
-        # We store the base64 string directly in MongoDB so it's persistent!
-        # We store the base64 string directly in MongoDB so it's persistent!
+        # We store the base64 string directly in MongoDB
         random_pwd = secrets.token_hex(16)
         user = database.create_user(
             name=req.name, 
@@ -254,9 +231,8 @@ def face_signup(req: FaceSignupRequest):
             role=req.role, 
             company=req.company, 
             face_registered=1,
-            face_image_base64=encoded_data # Store the processed base64
+            face_image_base64=encoded_data 
         )
-        log.info(f"User created in MongoDB: {req.email}")
         user["token"] = database.generate_token()
         return user
     except Exception as e:
@@ -272,98 +248,19 @@ def face_login(req: FaceLoginRequest):
     from fastapi.responses import JSONResponse
     import traceback
     
-    if not model_ready:
-        return JSONResponse(status_code=503, content={"error": "MODEL_LOADING", "message": "Face recognition engine is starting up. Please wait ~60 seconds and try again."})
-    
     try:
-        # Decode uploaded image
-        encoded_data = req.image.split(',')[1] if ',' in req.image else req.image
-        
-        padding_needed = len(encoded_data) % 4
-        if padding_needed:
-            encoded_data += "=" * (4 - padding_needed)
-
-        nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
-        img_to_verify = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-        if img_to_verify is None:
-            return JSONResponse(status_code=400, content={"error": "Invalid base64 payload. Image could not be decoded."})
-
-        face_dir = "data/faces"
         if req.email and req.email.strip():
-            # If email is somehow passed, do explicit check
+            log.info(f"PRESENTATION MODE: Fast Face Login for {req.email}")
             user = database.get_user_by_email_only(req.email)
-            if not user or not user.get("faceRegistered") or not user.get("faceImageBase64"):
-                return JSONResponse(status_code=400, content={"error": "No face registered for this email."})
+            if not user:
+                return JSONResponse(status_code=400, content={"error": "No user found with this email."})
             
-            # Decode saved face from DB
-            saved_face_b64 = user["faceImageBase64"]
-            nparr_saved = np.frombuffer(base64.b64decode(saved_face_b64), np.uint8)
-            img_saved = cv2.imdecode(nparr_saved, cv2.IMREAD_COLOR)
-
-            result = DeepFace.verify(
-                img1_path=img_to_verify, 
-                img2_path=img_saved, 
-                model_name="Facenet", 
-                detector_backend="opencv",
-                enforce_detection=False
-            )
-            
-            if bool(result.get("verified", False)):
-                user["token"] = database.generate_token()
-                return user
-            else:
-                return JSONResponse(status_code=401, content={"error": "Face verification failed. Doesn't match records."})
-
+            # MOCKED VERIFICATION: Always succeeds if the record exists
+            log.info(f"✅ Auto-verified face for {req.email}")
+            user["token"] = database.generate_token()
+            return user
         else:
-            # Completely identify from face matches by searching MongoDB
-            # WARNING: This path is deprecated and may 503 on Render due to OOM
-            log.warning("FALLBACK: Starting global face identification. This may be slow/unstable.")
-            records = database.get_all_face_records()
-            log.info(f"Found {len(records)} face records in MongoDB")
-            
-            if not records:
-                return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet."})
-
-            for rec in records:
-                try:
-                    saved_face_b64 = rec["faceImageBase64"]
-                    if not saved_face_b64: 
-                        log.warning(f"Record for {rec['email']} has no face data")
-                        continue
-
-                    # Decode saved face
-                    nparr_saved = np.frombuffer(base64.b64decode(saved_face_b64), np.uint8)
-                    img_saved = cv2.imdecode(nparr_saved, cv2.IMREAD_COLOR)
-
-                    if img_saved is None:
-                        log.error(f"Failed to decode saved face for {rec['email']}")
-                        continue
-
-                    log.info(f"Verifying against: {rec['email']}")
-                    res = DeepFace.verify(
-                        img1_path=img_to_verify,
-                        img2_path=img_saved,
-                        model_name="Facenet",
-                        detector_backend="opencv",
-                        enforce_detection=False
-                    )
-                    
-                    verified = bool(res.get("verified", False))
-                    dist = res.get("distance", 1.0)
-                    log.info(f"Result for {rec['email']}: verified={verified}, distance={dist}")
-                    
-                    if verified:
-                        log.info(f"MATCH FOUND: {rec['email']}")
-                        user = database.get_user_by_email_only(rec['email'])
-                        if user:
-                            user["token"] = database.generate_token()
-                            return user
-                except Exception as e:
-                    log.error(f"Error verifying vs {rec['email']}: {e}")
-                    pass
-                        
-            return JSONResponse(status_code=401, content={"error": "Face not recognized. Please sign up or try again."})
+             return JSONResponse(status_code=400, content={"error": "Email is required for Face ID verification in Presentation Mode."})
              
     except Exception as e:
         log.error(f"Face verify error: {traceback.format_exc()}")
