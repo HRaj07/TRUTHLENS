@@ -10,13 +10,13 @@ const NODE_BASE    = process.env.REACT_APP_NODE_URL    || 'http://127.0.0.1:3001
 // Axios instances
 const fastapiClient = axios.create({
   baseURL: FASTAPI_BASE,
-  timeout: 15000,
+  timeout: 90000, // 90s — needed to survive Render free-tier cold starts (~50s)
 });
 
-// Separate client with longer timeout for Face ID (model download can take ~90s)
+// Separate client with longer timeout for Face ID (DeepFace model download can take ~3min on cold start)
 const faceClient = axios.create({
   baseURL: FASTAPI_BASE,
-  timeout: 120000,
+  timeout: 180000, // 3 minutes
 });
 
 const nodeClient = axios.create({
