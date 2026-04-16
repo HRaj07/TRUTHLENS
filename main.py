@@ -226,8 +226,25 @@ def face_signup(req: FaceSignupRequest):
         padding_needed = len(encoded_data) % 4
         if padding_needed:
             encoded_data += "=" * (4 - padding_needed)
-            
+
         log.info(f"Face signup attempt for {req.email}")
+
+        # --- FACE DETECTION CHECK ---
+        nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
+        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        if img is None:
+            return JSONResponse(status_code=400, content={"error": "Invalid image data."})
+            
+        # Quick check for face using the already loaded face_cascade (from predictor if accessible, or just local here)
+        # To keep it simple and fast, we use OpenCV Haar
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+        faces = face_cascade.detectMultiScale(gray, 1.1, 4)
+        
+        if len(faces) == 0:
+             return JSONResponse(status_code=400, content={"error": "No face detected. Please ensure your face is clearly visible in the camera."})
+        
+        # We store the base64 string directly in MongoDB so it's persistent!
         # We store the base64 string directly in MongoDB so it's persistent!
         random_pwd = secrets.token_hex(16)
         user = database.create_user(
@@ -300,12 +317,13 @@ def face_login(req: FaceLoginRequest):
 
         else:
             # Completely identify from face matches by searching MongoDB
-            log.info("Starting global face identification from MongoDB...")
+            # WARNING: This path is deprecated and may 503 on Render due to OOM
+            log.warning("FALLBACK: Starting global face identification. This may be slow/unstable.")
             records = database.get_all_face_records()
             log.info(f"Found {len(records)} face records in MongoDB")
             
             if not records:
-                return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet. Please perform a Face Signup first."})
+                return JSONResponse(status_code=400, content={"error": "No face records exist in the system yet."})
 
             for rec in records:
                 try:
