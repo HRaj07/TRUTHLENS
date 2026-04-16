@@ -189,7 +189,7 @@ class SignupRequest(BaseModel):
     company: str = ""
 
 @app.post("/api/auth/login")
-async def login(req: LoginRequest):
+def login(req: LoginRequest):
     from fastapi.responses import JSONResponse
     user = database.get_user_by_email_and_password(req.email, req.password)
     if not user:
@@ -198,7 +198,7 @@ async def login(req: LoginRequest):
     return user
 
 @app.post("/api/auth/signup")
-async def signup(req: SignupRequest):
+def signup(req: SignupRequest):
     from fastapi.responses import JSONResponse
     try:
         user = database.create_user(req.name, req.email, req.password, req.role, req.company)
@@ -215,7 +215,7 @@ class FaceSignupRequest(BaseModel):
     company: str = ""
 
 @app.post("/api/auth/face-signup")
-async def face_signup(req: FaceSignupRequest):
+def face_signup(req: FaceSignupRequest):
     from fastapi.responses import JSONResponse
     import traceback
     try:
@@ -251,7 +251,7 @@ class FaceLoginRequest(BaseModel):
     image: str
 
 @app.post("/api/auth/face-login")
-async def face_login(req: FaceLoginRequest):
+def face_login(req: FaceLoginRequest):
     from fastapi.responses import JSONResponse
     import traceback
     
@@ -359,7 +359,7 @@ def home():
     return {"status": "Backend running", "rooms": list(room_manager.rooms.keys())}
 
 @app.post("/api/sessions/create")
-async def create_session(metadata: dict = Body(default={})):
+def create_session(metadata: dict = Body(default={})):
     chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     code = ''.join(random.choices(chars, k=6))
     # Note: simple loop assuming no infinite collision
@@ -375,7 +375,7 @@ async def create_session(metadata: dict = Body(default={})):
     return database.get_session(code)
 
 @app.post("/api/sessions/validate")
-async def validate_session(data: dict = Body(...)):
+def validate_session(data: dict = Body(...)):
     code = data.get("code", "").upper().strip()
     session = database.get_session(code)
     if session:
@@ -383,11 +383,11 @@ async def validate_session(data: dict = Body(...)):
     return {"error": "Invalid session code"}
 
 @app.get("/api/sessions")
-async def list_sessions():
+def list_sessions():
     return database.get_all_sessions()
 
 @app.get("/api/sessions/{code}")
-async def get_session(code: str):
+def get_session(code: str):
     code = code.upper().strip()
     session = database.get_session(code)
     if session:
@@ -395,7 +395,7 @@ async def get_session(code: str):
     return {"error": "Session not found"}
 
 @app.post("/api/sessions/{code}/results")
-async def save_session_results(code: str, results: dict = Body(...)):
+def save_session_results(code: str, results: dict = Body(...)):
     code = code.upper().strip()
     session = database.get_session(code)
     if session:
@@ -404,8 +404,8 @@ async def save_session_results(code: str, results: dict = Body(...)):
     return {"error": "Session not found"}
 
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
-    contents = await file.read()
+def analyze(file: UploadFile = File(...)):
+    contents = file.file.read()
     nparr = np.frombuffer(contents, np.uint8)
     
     # Use color image for better accuracy with MediaPipe/DeepFace
@@ -449,3 +449,8 @@ def generate_report():
         code="INT001",
     )
     return {"status": "Report generated successfully"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port)
