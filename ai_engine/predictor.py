@@ -43,11 +43,10 @@ def predict(frame):
     faces = face_cascade.detectMultiScale(gray, 1.3, 5)
     
     if len(faces) == 0:
-        # If no face is detected, we can hold the buffer steady or return None
-        if len(buffer) == 10:
-            pass # Keep using old buffer to maintain prediction temporarily
-        else:
-            return None
+        # If no face is detected, we return Neutral (index 4) to keep the UI calm
+        neutral_probs = np.ones(7) * 0.05
+        neutral_probs[4] = 0.70
+        return neutral_probs / neutral_probs.sum()
     else:
         # Get primary face (largest)
         faces = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)

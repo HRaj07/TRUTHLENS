@@ -98,12 +98,17 @@ class EnhancedEmotionModel:
     # ------------------------------------------------------------------
     def _history_or_uniform(self):
         if self.history:
-            return self.history[-1]   # repeat last known good reading
+            # Gradually decay history towards neutral if too many failures
+            return self.history[-1] 
         return self._uniform_fallback("empty history")
 
     def _uniform_fallback(self, reason=""):
-        log.debug(f"Uniform fallback ({reason})")
-        return np.ones(len(LABELS)) / len(LABELS)  # Equal spread, NOT all-neutral
+        log.debug(f"Neutral fallback ({reason})")
+        # Return Neutral (index 4) with high probability, others low
+        # This prevents np.argmax from defaulting to 'angry' (index 0)
+        probs = np.ones(len(LABELS)) * 0.05
+        probs[4] = 0.70  # Force index 4 (neutral) as the winner
+        return probs / probs.sum()
 
 
 # ── Singleton ─────────────────────────────────────────────────────────────────

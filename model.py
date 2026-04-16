@@ -53,6 +53,8 @@ def predict_emotion_from_frame(frame, return_probs=False):
         try:
             probs = get_enhanced_prediction(frame)
             if probs is not None:
+                # If prediction is perfectly uniform, it's a 'no face' detection
+                # We handle this in get_enhanced_prediction now (it returns biased neutral)
                 if return_probs:
                     return probs
                 return EMOTION_LABELS[int(np.argmax(probs))]
@@ -70,8 +72,12 @@ def predict_emotion_from_frame(frame, return_probs=False):
         except Exception as e:
             log.error(f"New model prediction failed: {e}")
 
-    # 3. Default fallback: pure random
-    return _random_all_emotions(return_probs)
+    # 3. Default fallback: Neutral
+    neutral_probs = np.zeros(len(EMOTION_LABELS))
+    neutral_probs[4] = 1.0
+    if return_probs:
+        return neutral_probs
+    return "neutral"
 
 
 def predict_emotion(img, return_probs=False):
