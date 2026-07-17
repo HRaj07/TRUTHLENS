@@ -171,14 +171,7 @@ const AuthPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Demo credentials hint */}
-            {isLogin && (
-              <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 text-xs text-slate-400">
-                <span className="text-neon-400 font-bold">Demo:</span> Use{' '}
-                <button type="button" onClick={() => setFormData(f => ({ ...f, email: 'alex@interviewer.com', password: 'demo123' }))} className="text-neon-300 underline hover:text-white">alex@interviewer.com</button>{' '}or{' '}
-                <button type="button" onClick={() => setFormData(f => ({ ...f, email: 'sam@candidate.com', password: 'demo123' }))} className="text-neon-300 underline hover:text-white">sam@candidate.com</button>{' '}/ <span className="font-mono">demo123</span>
-              </div>
-            )}
+
 
             <AnimatePresence mode='wait'>
               {!isLogin && (
