@@ -33,24 +33,6 @@ database.init_db()
 # DeepFace and TensorFlow are now active for high-accuracy analysis.
 model_ready = False # Set to False initially if pre-warming is needed
 
-def prewarm_deepface():
-    try:
-        log.info("🚀 Production Mode Active: Initializing Face ID Engine...")
-        # Warm up dummy
-        _dummy = np.zeros((224, 224, 3), dtype=np.uint8)
-        DeepFace.analyze(_dummy, actions=['emotion'], enforce_detection=False)
-        # Pre-warm Facenet for login to avoid download timeouts later
-        DeepFace.verify(_dummy, _dummy, model_name="Facenet", enforce_detection=False)
-        global model_ready
-        model_ready = True
-        log.info("✅ Face ID Engine is Ready and Stable.")
-    except Exception as e:
-        log.error(f"❌ Face ID Engine failed to initialize: {e}")
-
-import threading
-threading.Thread(target=prewarm_deepface, daemon=True).start()
-
-
 @app.get("/api/ready")
 def check_ready():
     return {"ready": model_ready, "message": "Face engine ready" if model_ready else "Face engine is initializing, please wait 60 seconds..."}
