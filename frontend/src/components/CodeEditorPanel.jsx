@@ -3,13 +3,12 @@ import Editor from '@monaco-editor/react';
 import { Play, RotateCcw, Trash2, Code2, Loader2, CheckCircle2, XCircle, Terminal } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ── Language configs for Piston API ───────────────────────────
+// ── Language configs for Wandbox API ───────────────────────
 const LANGUAGES = [
   {
     id: 'python',
     label: 'Python 3',
-    pistonLang: 'python',
-    pistonVersion: '3.10.0',
+    wandboxCompiler: 'cpython-3.12.7',
     monacoLang: 'python',
     defaultCode: `# Python 3
 def solution(nums):
@@ -23,8 +22,7 @@ print(solution([3, 1, 4, 1, 5, 9, 2, 6]))
   {
     id: 'java',
     label: 'Java',
-    pistonLang: 'java',
-    pistonVersion: '15.0.2',
+    wandboxCompiler: 'openjdk-jdk-21+35',
     monacoLang: 'java',
     defaultCode: `// Java
 import java.util.*;
@@ -42,8 +40,7 @@ public class Main {
   {
     id: 'cpp',
     label: 'C++',
-    pistonLang: 'c++',
-    pistonVersion: '10.2.0',
+    wandboxCompiler: 'gcc-13.2.0',
     monacoLang: 'cpp',
     defaultCode: `// C++
 #include <bits/stdc++.h>
@@ -61,28 +58,32 @@ int main() {
   },
 ];
 
-// ── Piston API executor ───────────────────────────────────────
+// ── Wandbox API executor (free, no API key) ─────────────────
 const executeCode = async (language, code) => {
   const lang = LANGUAGES.find(l => l.id === language);
   if (!lang) throw new Error('Unknown language');
 
-  const response = await fetch('https://emkc.org/api/v2/piston/execute', {
+  const response = await fetch('https://wandbox.org/api/compile.json', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      language: lang.pistonLang,
-      version: lang.pistonVersion,
-      files: [{ content: code }],
+      compiler: lang.wandboxCompiler,
+      code,
+      'compiler-option-raw': '',
+      'runtime-option-raw': '',
+      save: false,
     }),
   });
 
-  if (!response.ok) throw new Error(`Piston API error: ${response.status}`);
+  if (!response.ok) throw new Error(`Wandbox API error: ${response.status}`);
   const data = await response.json();
+
+  const exitCode = parseInt(data.status ?? '0', 10);
   return {
-    stdout: data.run?.stdout || '',
-    stderr: data.run?.stderr || '',
-    exitCode: data.run?.code ?? 0,
-    compile_output: data.compile?.stderr || '',
+    stdout: data.program_output || '',
+    stderr: data.program_error || '',
+    exitCode,
+    compile_output: data.compiler_error || '',
   };
 };
 
