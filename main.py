@@ -39,6 +39,8 @@ def prewarm_deepface():
         # Warm up dummy
         _dummy = np.zeros((224, 224, 3), dtype=np.uint8)
         DeepFace.analyze(_dummy, actions=['emotion'], enforce_detection=False)
+        # Pre-warm Facenet for login to avoid download timeouts later
+        DeepFace.verify(_dummy, _dummy, model_name="Facenet", enforce_detection=False)
         global model_ready
         model_ready = True
         log.info("✅ Face ID Engine is Ready and Stable.")
@@ -273,6 +275,7 @@ def face_login(req: FaceLoginRequest):
                 res = DeepFace.verify(
                     img1_path=req.image, 
                     img2_path=db_image,
+                    model_name="Facenet",
                     enforce_detection=False,
                     detector_backend='opencv'
                 )
