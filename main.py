@@ -281,13 +281,15 @@ def face_login(req: FaceLoginRequest):
                 )
                 
                 distance = res.get("distance", 1.0)
-                if res.get("verified") and distance < min_distance:
+                # For prototypes, a slightly looser threshold (0.50) is better than strict 0.40
+                if distance < 0.50 and distance < min_distance:
                     min_distance = distance
                     best_match = rec
                     # If we find a very strong match, we can stop early
                     if distance < 0.25:
                         break
-            except Exception:
+            except Exception as e:
+                log.error(f"Face verify failed for {rec['email']}: {e}")
                 continue
 
         if best_match:
