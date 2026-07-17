@@ -54,3 +54,18 @@ data/
 *.model
 *.weights
 *.pkl
+
+# Ignored from final repo submission
+TruthLens_Submission/
+scratch/
+app.py
+generate_ai_video.py
+render_ui_video.py
+run_emotion.py
+train.py
+train_all.py
+train_all_mlx.py
+train_mlx.py
+download_dataset.py
+prepare_data.py
+test_*.py
