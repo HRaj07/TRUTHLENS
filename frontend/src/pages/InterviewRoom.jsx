@@ -318,7 +318,7 @@ const InterviewRoom = () => {
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+              className="absolute inset-0 w-full h-full object-contain transition-opacity duration-700"
               style={{ opacity: remoteConnected ? 1 : 0 }}
             />
 
