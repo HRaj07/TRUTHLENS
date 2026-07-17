@@ -7,6 +7,7 @@ import {
   PhoneOff, MessageCircle, BarChart2, Monitor, Users,
   Brain, ChevronRight, ShieldAlert, Clock, Send, Activity,
   Maximize2, Settings, Download, Wifi, WifiOff, Copy, CheckCheck,
+  Code2,
 } from 'lucide-react';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer,
@@ -17,6 +18,7 @@ import { useAuth }      from '../context/AuthContext';
 import { useInterview } from '../context/InterviewContext';
 import { useWebRTC }    from '../hooks/useWebRTC';
 import { useEmotionAnalysis } from '../hooks/useEmotionAnalysis';
+import CodeEditorPanel  from '../components/CodeEditorPanel';
 
 // ─────────────────────────────────────────────────────────────
 const InterviewRoom = () => {
@@ -37,6 +39,9 @@ const InterviewRoom = () => {
   const [chatInput,   setChatInput]   = useState('');
   const [codeCopied,  setCodeCopied]  = useState(false);
   const [nameInput,   setNameInput]   = useState('');
+  const [codeOpen,    setCodeOpen]    = useState(false);
+  const [remoteCode,  setRemoteCode]  = useState(null);
+  const [remoteLang,  setRemoteLang]  = useState(null);
   // Show name modal for anyone without a stored name
   const [showNameModal, setShowNameModal] = useState(!user?.name);
   const chatEndRef = useRef(null);
@@ -57,12 +62,14 @@ const InterviewRoom = () => {
     startScreenShare, stopScreenShare,
     captureFrameAsBlob,
     sendChatMessage,
+    sendCodeUpdate,
     audioLevel, wsStatus, loading, error,
   } = useWebRTC({ 
     role: user.role, 
     sessionCode: activeCode, 
     userName: effectiveName,
-    onChatMessage: (data) => receiveMessage(data.text, data.senderName, data.senderId)
+    onChatMessage: (data) => receiveMessage(data.text, data.senderName, data.senderId),
+    onCodeUpdate: (code, lang) => { setRemoteCode(code); setRemoteLang(lang); },
   });
 
   // Emotion analysis on remote video (interviewer only, runs after room is live)
@@ -598,6 +605,28 @@ const InterviewRoom = () => {
             </motion.aside>
           )}
         </AnimatePresence>
+
+        {/* ── CODE EDITOR PANEL ────────────────────────────── */}
+        <AnimatePresence>
+          {codeOpen && (
+            <motion.aside
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 520, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="glass-dark border-l border-slate-800 flex flex-col shrink-0 overflow-hidden z-30"
+              style={{ minWidth: codeOpen ? 520 : 0 }}
+            >
+              <div className="min-w-[520px] h-full flex flex-col">
+                <CodeEditorPanel
+                  onCodeChange={sendCodeUpdate}
+                  remoteCode={remoteCode}
+                  remoteLanguage={remoteLang}
+                />
+              </div>
+            </motion.aside>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── CONTROL BAR ─────────────────────────────────────── */}
@@ -617,6 +646,7 @@ const InterviewRoom = () => {
           <ControlButton icon={Monitor}                          active={screenSharing}  onClick={handleToggleScreen} title="Share screen" />
           <div className="w-px h-8 bg-slate-800 mx-2" />
           <ControlButton icon={MessageCircle} active={chatOpen}      badge={unreadCount > 0 ? unreadCount : null} onClick={() => setChatOpen(!chatOpen)} title="Chat" />
+          <ControlButton icon={Code2}          active={codeOpen}      onClick={() => setCodeOpen(p => !p)} title="Code Editor" />
           {user.role === 'interviewer' && (
             <ControlButton icon={BarChart2} active={analyticsOpen} onClick={() => setAnalyticsOpen(!analyticsOpen)} title="Analytics" />
           )}

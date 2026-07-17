@@ -21,7 +21,7 @@ const ICE_SERVERS = [
   { urls: 'stun:stun4.l.google.com:19302' },
 ];
 
-export function useWebRTC({ role = 'candidate', sessionCode = '', userName = 'User', onChatMessage } = {}) {
+export function useWebRTC({ role = 'candidate', sessionCode = '', userName = 'User', onChatMessage, onCodeUpdate } = {}) {
   // ── DOM refs ────────────────────────────────────────────────
   const localVideoRef  = useRef(null);
   const remoteVideoRef = useRef(null);
@@ -185,6 +185,8 @@ export function useWebRTC({ role = 'candidate', sessionCode = '', userName = 'Us
 
       } else if (data.type === 'chat') {
         if (onChatMessage) onChatMessage(data);
+      } else if (data.type === 'code_update') {
+        if (onCodeUpdate) onCodeUpdate(data.code, data.language);
       } else if (data.type === 'peer-left') {
         setRemoteConnected(false);
         if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
@@ -395,6 +397,17 @@ export function useWebRTC({ role = 'candidate', sessionCode = '', userName = 'Us
     }
   }, []);
 
+  // ── Send Code Update ────────────────────────────────────────
+  const sendCodeUpdate = useCallback((code, language) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'code_update',
+        code,
+        language,
+      }));
+    }
+  }, []);
+
   // ── Capture frame as blob (for AI analysis) ────────────────
   const captureFrameAsBlob = useCallback((videoEl = null) => {
     return new Promise((resolve) => {
@@ -427,5 +440,6 @@ export function useWebRTC({ role = 'candidate', sessionCode = '', userName = 'Us
     stopScreenShare,
     captureFrameAsBlob,
     sendChatMessage,
+    sendCodeUpdate,
   };
 }
