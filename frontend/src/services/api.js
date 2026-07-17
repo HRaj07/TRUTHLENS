@@ -31,8 +31,8 @@ const attachAuth = (config) => {
 };
 
 fastapiClient.interceptors.request.use(attachAuth);
-faceClient.interceptors.request.use(attachAuth);
 nodeClient.interceptors.request.use(attachAuth);
+
 
 // ============================================================
 //  EMOTION ANALYSIS  (FastAPI)
