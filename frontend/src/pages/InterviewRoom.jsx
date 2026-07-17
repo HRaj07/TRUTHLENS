@@ -362,7 +362,7 @@ const InterviewRoom = () => {
                       >
                         {codeCopied
                           ? <><CheckCheck className="w-4 h-4 text-cyber-400" /> Copied!</>
-                          : <><Copy className="w-4 h-4" /> Copy Link</>}
+                          : <><Copy className="w-4 h-4" /> Copy Code</>}
                       </button>
                     </div>
                     <div className="text-xs text-slate-600">
