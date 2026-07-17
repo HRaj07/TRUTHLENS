@@ -79,7 +79,8 @@ export function AuthProvider({ children }) {
       } else {
         msg = responseData?.message || responseData?.error || err.message || 'Face login failed.';
       }
-      setError(msg);
+      // Don't persist error in context for face login — UI polling handles retry display
+      setError(null);
       throw new Error(msg);
     } finally {
       setLoading(false);

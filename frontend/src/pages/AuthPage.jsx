@@ -69,14 +69,14 @@ const AuthPage = () => {
   const { login, signup, faceLogin, faceSignup } = useAuth();
   const navigate = useNavigate();
 
-  // Auto-scan polling for Face ID Login
-  const isScanningRef = React.useRef(false); // prevent concurrent requests
+  // Ref to prevent concurrent scan requests
+  const isScanningRef = React.useRef(false);
 
   React.useEffect(() => {
     let intervalId;
     let isMounted = true;
 
-    if (isLogin && authMode === 'face' && !authError && !isSubmitting) {
+    if (isLogin && authMode === 'face' && !isSubmitting) {
       intervalId = setInterval(async () => {
         if (isScanningRef.current) return;
 
@@ -88,6 +88,7 @@ const AuthPage = () => {
           const btnStatus = document.getElementById('auto-scan-status');
           if (btnStatus) btnStatus.innerText = "Analyzing Face...";
 
+          // Always pass image as data URL — the backend handles both formats
           await faceLogin(image, role);
 
           if (!isMounted) return;
@@ -100,13 +101,15 @@ const AuthPage = () => {
         } catch (err) {
           if (!isMounted) return;
           const btnStatus = document.getElementById('auto-scan-status');
-          // Handle model still loading
-          if (err.message && err.message.includes('MODEL_LOADING')) {
+          const msg = err.message || '';
+          if (msg.includes('MODEL_LOADING') || msg.includes('Face recognition engine is starting')) {
             if (btnStatus) btnStatus.innerText = "⏳ Engine starting up... (~60s)";
-          } else if (err.message && err.message.includes('Face recognition engine is starting')) {
-            if (btnStatus) btnStatus.innerText = "⏳ Engine starting up... (~60s)";
+          } else if (msg.includes('No matching face')) {
+            if (btnStatus) btnStatus.innerText = "❌ No match — hold still and retry...";
+          } else if (msg.includes('Network Error') || msg.includes('network')) {
+            if (btnStatus) btnStatus.innerText = "⚠️ Server busy, retrying in 3s...";
           } else {
-            if (btnStatus) btnStatus.innerText = "No match. Hold still...";
+            if (btnStatus) btnStatus.innerText = "Scanning... hold still";
           }
         } finally {
           isScanningRef.current = false;
@@ -119,7 +122,7 @@ const AuthPage = () => {
       isScanningRef.current = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [isLogin, authMode, authError, isSubmitting, role, navigate, redirectParams, faceLogin]);
+  }, [isLogin, authMode, isSubmitting, role, navigate, redirectParams, faceLogin]);
 
   const captureFace = () => {
     const video = videoRef.current;
