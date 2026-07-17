@@ -13,15 +13,17 @@ import urllib.parse
 # Let's handle it robustly.
 
 MONGO_URI = "mongodb+srv://2601harshitraj:Hr%40j2601@cluster0.ngidqsb.mongodb.net/?appName=Cluster0"
+client = None
+db = None
+
 try:
     client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     # The ismaster command is cheap and does not require auth.
     client.admin.command('ping')
+    db = client.truthlens
     print("✅ MongoDB Connected Successfully!")
 except Exception as e:
     print(f"❌ MongoDB Connection Failed: {e}")
-
-db = client.truthlens
 
 def init_db():
     try:
