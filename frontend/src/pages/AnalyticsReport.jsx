@@ -76,11 +76,11 @@ const AnalyticsReport = () => {
     </div>
   );
 
-  if (!report) return (
+  if (!report || !report.aggregateStats || !report.emotionHistory) return (
      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-10 text-center">
         <ShieldCheck className="w-16 h-16 text-danger-400 mb-6 opacity-20" />
-        <h2 className="text-2xl font-bold text-white mb-2">Report Not Found</h2>
-        <p className="text-slate-500 mb-8">This session data may have expired or was never analyzed.</p>
+        <h2 className="text-2xl font-bold text-white mb-2">Report Not Found or Processing</h2>
+        <p className="text-slate-500 mb-8">This session data may have expired, was never analyzed, or is still processing. Please try again in a few moments.</p>
         <button onClick={() => navigate(user?.role === 'interviewer' ? '/dashboard/interviewer' : '/dashboard/candidate')} className="btn-secondary">Return to Dashboard</button>
      </div>
   );

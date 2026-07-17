@@ -250,7 +250,7 @@ const InterviewRoom = () => {
           )}
 
           <button
-            onClick={() => { endSession(); navigate(`/report/${code}`); }}
+            onClick={async () => { await endSession(); navigate(`/report/${code}`); }}
             className="btn-danger py-1.5 px-4 text-xs flex items-center gap-2"
           >
             <PhoneOff className="w-3.5 h-3.5" />
