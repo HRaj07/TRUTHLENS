@@ -353,8 +353,8 @@ const InterviewRoom = () => {
                       Share this session code
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-neon-400 font-mono text-sm sm:text-lg lg:text-xl font-black tracking-widest px-6 py-3 bg-neon-400/5 border border-neon-400/20 rounded-2xl break-all line-clamp-1">
-                        {`${window.location.origin}/room/${code}`}
+                      <div className="text-neon-400 font-mono text-3xl sm:text-4xl font-black tracking-[0.4em] px-8 py-4 bg-neon-400/5 border border-neon-400/20 rounded-2xl">
+                        {code}
                       </div>
                       <button
                         onClick={copyCode}
@@ -362,11 +362,11 @@ const InterviewRoom = () => {
                       >
                         {codeCopied
                           ? <><CheckCheck className="w-4 h-4 text-cyber-400" /> Copied!</>
-                          : <><Copy className="w-4 h-4" /> Copy</>}
+                          : <><Copy className="w-4 h-4" /> Copy Link</>}
                       </button>
                     </div>
                     <div className="text-xs text-slate-600">
-                      Or candidate can enter code <span className="text-slate-400 font-mono font-bold">{code}</span> at <span className="text-slate-400 font-mono">/dashboard/candidate</span>
+                      Candidate enters this code at <span className="text-slate-400 font-mono">/dashboard/candidate</span>
                     </div>
                   </div>
                 )}
