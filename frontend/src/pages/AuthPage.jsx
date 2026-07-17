@@ -194,7 +194,7 @@ const AuthPage = () => {
                       type="text"
                       name="name"
                       required
-                      placeholder="John Doe"
+                      placeholder="Write your full name"
                       className="input-dark !pl-12"
                       value={formData.name}
                       onChange={handleInputChange}
