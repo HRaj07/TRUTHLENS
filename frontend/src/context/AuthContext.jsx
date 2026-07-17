@@ -24,9 +24,7 @@ export function AuthProvider({ children }) {
     setError(null);
     try {
       const userData = await authAPI.login({ email, password });
-      
       const finalUser = { ...userData, role: role || userData.role };
-      
       setUser(finalUser);
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(finalUser));
       return finalUser;
@@ -48,65 +46,11 @@ export function AuthProvider({ children }) {
       if (!password || password.length < 6) throw new Error('Password must be at least 6 characters.');
       
       const userData = await authAPI.signup({ name, email, password, role, company });
-      
       setUser(userData);
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userData));
       return userData;
     } catch (err) {
       const msg = err.response?.data?.error || err.message;
-      setError(msg);
-      throw new Error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const faceLogin = useCallback(async (image, role) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const userData = await authAPI.faceLogin({ image });
-      const finalUser = { ...userData, role: role || userData.role };
-      setUser(finalUser);
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(finalUser));
-      return finalUser;
-    } catch (err) {
-      // Parse error from response body or message
-      const responseData = err.response?.data;
-      let msg;
-      if (responseData?.error === 'MODEL_LOADING') {
-        msg = 'MODEL_LOADING'; // Signal to UI to show "engine starting" message
-      } else {
-        msg = responseData?.message || responseData?.error || err.message || 'Face login failed.';
-      }
-      // Don't persist error in context for face login — UI polling handles retry display
-      setError(null);
-      throw new Error(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const faceSignup = useCallback(async ({ name, email, role, image, company }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      if (!name?.trim()) throw new Error('Full name is required.');
-      if (!email?.trim()) throw new Error('Email is required.');
-      
-      const userData = await authAPI.faceSignup({ name, email, role, image, company });
-      setUser(userData);
-      localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userData));
-      return userData;
-    } catch (err) {
-      const responseData = err.response?.data;
-      // Clean up the error message for "already exists" case
-      let msg = responseData?.error || err.message || 'Face signup failed.';
-      if (msg.includes('already exists')) {
-        msg = 'An account with this email already exists. Please use a different email or sign in instead.';
-      } else if (msg.startsWith('Face Setup Failed: ')) {
-        msg = msg.replace('Face Setup Failed: ', '');
-      }
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -135,13 +79,11 @@ export function AuthProvider({ children }) {
     isInterviewer: user?.role === 'interviewer',
     isCandidate: user?.role === 'candidate',
     login,
-    faceLogin,
     signup,
-    faceSignup,
     logout,
     updateProfile,
     clearError: () => setError(null),
-  }), [user, loading, error, login, faceLogin, signup, faceSignup, logout, updateProfile]);
+  }), [user, loading, error, login, signup, logout, updateProfile]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

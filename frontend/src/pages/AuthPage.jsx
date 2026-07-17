@@ -28,7 +28,7 @@ const AuthPage = () => {
     setIsLogin(!isSignupPath);
   }, [isSignupPath]);
 
-  const [role, setRole] = useState(isRoomRedirect ? 'candidate' : 'interviewer'); // 'interviewer' | 'candidate'
+  const [role, setRole] = useState(isRoomRedirect ? 'candidate' : 'interviewer');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -38,101 +38,8 @@ const AuthPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  const [authMode, setAuthMode] = useState('password'); // 'password' | 'face'
-  const videoRef = React.useRef(null);
-  const streamRef = React.useRef(null);
-  const [faceError, setFaceError] = useState('');
-
-  // Stop camera when unmounting or switching to password mode
-  const stopCamera = () => {
-    streamRef.current?.getTracks().forEach(t => t.stop());
-    streamRef.current = null;
-  };
-
-  React.useEffect(() => {
-    if (authMode === 'face') {
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
-        .then(stream => {
-          streamRef.current = stream;
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.play().catch(() => { });
-          }
-        })
-        .catch(err => setFaceError('Camera access denied or unavailable.'));
-    } else {
-      stopCamera();
-    }
-    return stopCamera;
-  }, [authMode]);
-
-  const { login, signup, faceLogin, faceSignup } = useAuth();
+  const { login, signup } = useAuth();
   const navigate = useNavigate();
-
-  // Ref to prevent concurrent scan requests
-  const isScanningRef = React.useRef(false);
-
-  React.useEffect(() => {
-    let intervalId;
-    let isMounted = true;
-
-    if (isLogin && authMode === 'face' && !isSubmitting) {
-      intervalId = setInterval(async () => {
-        if (isScanningRef.current) return;
-
-        try {
-          const image = captureFace();
-          if (!image) return;
-
-          isScanningRef.current = true;
-          const btnStatus = document.getElementById('auto-scan-status');
-          if (btnStatus) btnStatus.innerText = "Analyzing Face...";
-
-          // Always pass image as data URL — the backend handles both formats
-          await faceLogin(image, role);
-
-          if (!isMounted) return;
-
-          if (redirectParams) {
-            navigate(redirectParams);
-          } else {
-            navigate(role === 'interviewer' ? '/dashboard/interviewer' : '/dashboard/candidate');
-          }
-        } catch (err) {
-          if (!isMounted) return;
-          const btnStatus = document.getElementById('auto-scan-status');
-          const msg = err.message || '';
-          if (msg.includes('MODEL_LOADING') || msg.includes('Face recognition engine is starting')) {
-            if (btnStatus) btnStatus.innerText = "⏳ Engine starting up... (~60s)";
-          } else if (msg.includes('No matching face')) {
-            if (btnStatus) btnStatus.innerText = "❌ No match — hold still and retry...";
-          } else if (msg.includes('Network Error') || msg.includes('network')) {
-            if (btnStatus) btnStatus.innerText = "⚠️ Server busy, retrying in 3s...";
-          } else {
-            if (btnStatus) btnStatus.innerText = "Scanning... hold still";
-          }
-        } finally {
-          isScanningRef.current = false;
-        }
-      }, 3000);
-    }
-
-    return () => {
-      isMounted = false;
-      isScanningRef.current = false;
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [isLogin, authMode, isSubmitting, role, navigate, redirectParams, faceLogin]);
-
-  const captureFace = () => {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth) return null;
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    return canvas.toDataURL('image/jpeg', 0.85); // base64
-  };
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -145,20 +52,10 @@ const AuthPage = () => {
     setAuthError('');
 
     try {
-      if (authMode === 'face') {
-        const image = captureFace();
-        if (!image) throw new Error("Could not capture face image.");
-        if (isLogin) {
-          await faceLogin(image, role);
-        } else {
-          await faceSignup({ ...formData, role, image });
-        }
+      if (isLogin) {
+        await login(formData.email, formData.password, role);
       } else {
-        if (isLogin) {
-          await login(formData.email, formData.password, role);
-        } else {
-          await signup({ ...formData, role });
-        }
+        await signup({ ...formData, role });
       }
       if (redirectParams) {
         navigate(redirectParams);
@@ -176,7 +73,6 @@ const AuthPage = () => {
     <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row relative overflow-hidden font-sans">
       {/* --- Left Design Section --- */}
       <div className="hidden md:flex md:w-1/2 bg-slate-900 border-r border-slate-800 p-16 flex-col justify-between relative overflow-hidden">
-        {/* Abstract Background Element */}
         <div className="absolute -top-20 -left-20 w-[600px] h-[600px] bg-neon-400/5 rounded-full blur-[100px] select-none"></div>
         <div className="absolute bottom-40 -right-20 w-80 h-80 bg-cyber-500/5 rounded-full blur-[80px] select-none"></div>
 
@@ -247,7 +143,7 @@ const AuthPage = () => {
           {/* Role Selector */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <button
-              onClick={() => { setRole('interviewer'); }}
+              onClick={() => setRole('interviewer')}
               className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${role === 'interviewer'
                   ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30'
                   : 'bg-slate-900 border-slate-800 hover:border-slate-700'
@@ -260,7 +156,7 @@ const AuthPage = () => {
               </div>
             </button>
             <button
-              onClick={() => { setRole('candidate'); }}
+              onClick={() => setRole('candidate')}
               className={`flex flex-col items-center gap-3 p-4 rounded-xl border transition-all ${role === 'candidate'
                   ? 'bg-neon-400/10 border-neon-400/50 ring-1 ring-neon-400/30'
                   : 'bg-slate-900 border-slate-800 hover:border-slate-700'
@@ -274,22 +170,6 @@ const AuthPage = () => {
             </button>
           </div>
 
-          {/* Auth Mode Toggle */}
-          <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-800 mb-6">
-            <button
-              onClick={(e) => { e.preventDefault(); setAuthMode('password'); }}
-              className={`flex-1 py-2 text-xs font-bold uppercase rounded-md transition-all ${authMode === 'password' ? 'bg-slate-800 text-white' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              Password
-            </button>
-            <button
-              onClick={(e) => { e.preventDefault(); setAuthMode('face'); }}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold uppercase rounded-md transition-all ${authMode === 'face' ? 'bg-neon-400/20 text-neon-400' : 'text-slate-500 hover:text-slate-300'}`}
-            >
-              <UserCircle className="w-4 h-4" /> Face ID
-            </button>
-          </div>
-
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Demo credentials hint */}
             {isLogin && (
@@ -299,6 +179,7 @@ const AuthPage = () => {
                 <button type="button" onClick={() => setFormData(f => ({ ...f, email: 'sam@candidate.com', password: 'demo123' }))} className="text-neon-300 underline hover:text-white">sam@candidate.com</button>{' '}/ <span className="font-mono">demo123</span>
               </div>
             )}
+
             <AnimatePresence mode='wait'>
               {!isLogin && (
                 <motion.div
@@ -322,57 +203,41 @@ const AuthPage = () => {
                 </motion.div>
               )}
             </AnimatePresence>
-            {(
-              /* Email is required for all signups AND password logins (but NOT Face ID login anymore) */
-              !isLogin || authMode === 'password'
-            ) && (
-              <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Email Address</label>
-                <div className="relative mt-2">
-                  <Mail className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
-                  <input
-                    type="email"
-                    name="email"
-                    required
-                    placeholder="name@company.com"
-                    className="input-dark !pl-12"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-            )}
 
-            {authMode === 'password' ? (
-              <div>
-                <div className="flex justify-between items-center px-1">
-                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Password</label>
-                  {isLogin && <button type="button" className="text-xs font-semibold text-neon-400 hover:text-neon-300">Forgot?</button>}
-                </div>
-                <div className="relative mt-2">
-                  <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
-                  <input
-                    type="password"
-                    name="password"
-                    required
-                    placeholder="••••••••"
-                    className="input-dark !pl-12"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                  />
-                </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Email Address</label>
+              <div className="relative mt-2">
+                <Mail className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                <input
+                  type="email"
+                  name="email"
+                  required
+                  placeholder="name@company.com"
+                  className="input-dark !pl-12"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
               </div>
-            ) : (
-              <div className="w-full aspect-video bg-slate-900 border border-neon-400/30 rounded-xl overflow-hidden relative">
-                <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-                {faceError && <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-danger-400 text-xs px-4 text-center">{faceError}</div>}
-                <div className="absolute top-2 right-2 flex gap-1 pointer-events-none">
-                  <div className="w-2 h-2 rounded-full bg-neon-400 animate-pulse"></div>
-                </div>
-                <div className="absolute inset-0 pointer-events-none border-2 border-dashed border-neon-400/20 scale-90 rounded-3xl"></div>
-                <div className="absolute bottom-4 left-0 w-full text-center text-[10px] text-neon-400/70 uppercase tracking-widest font-mono shadow-md bg-black/40 py-1">Position face cleanly in frame for capture</div>
+            </div>
+
+            <div>
+              <div className="flex justify-between items-center px-1">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Password</label>
+                {isLogin && <button type="button" className="text-xs font-semibold text-neon-400 hover:text-neon-300">Forgot?</button>}
               </div>
-            )}
+              <div className="relative mt-2">
+                <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                <input
+                  type="password"
+                  name="password"
+                  required
+                  placeholder="••••••••"
+                  className="input-dark !pl-12"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                />
+              </div>
+            </div>
 
             {authError && (
               <div className="bg-danger-500/10 border border-danger-500/30 text-danger-400 text-xs py-3 px-4 rounded-lg flex items-center gap-2">
@@ -381,32 +246,20 @@ const AuthPage = () => {
               </div>
             )}
 
-            {!(isLogin && authMode === 'face') && (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="btn-primary w-full py-4 mt-4 flex items-center justify-center gap-2 group"
-              >
-                {isSubmitting ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <>
-                    {isLogin ? 'Sign In' : 'Create Account'}
-                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            )}
-
-            {(isLogin && authMode === 'face') && (
-              <div className="w-full py-4 mt-4 flex flex-col items-center justify-center gap-2 bg-neon-400/5 border border-neon-400/20 rounded-xl">
-                <div className="flex items-center gap-3 text-neon-400 font-bold uppercase tracking-widest text-xs">
-                  <div className="w-4 h-4 border-2 border-neon-400/30 border-t-neon-400 rounded-full animate-spin shadow-[0_0_10px_rgba(45,212,191,0.5)]"></div>
-                  <span id="auto-scan-status">Auto-Scanning Face</span>
-                </div>
-                <div className="text-[10px] text-slate-500 uppercase tracking-widest">Looking directly at the camera</div>
-              </div>
-            )}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="btn-primary w-full py-4 mt-4 flex items-center justify-center gap-2 group"
+            >
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </>
+              )}
+            </button>
           </form>
 
           <div className="mt-8 text-center text-slate-500 text-sm">

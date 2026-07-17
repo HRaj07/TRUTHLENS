@@ -13,11 +13,7 @@ const fastapiClient = axios.create({
   timeout: 90000, // 90s — needed to survive Render free-tier cold starts (~50s)
 });
 
-// Separate client with longer timeout for Face ID (DeepFace model download can take ~3min on cold start)
-const faceClient = axios.create({
-  baseURL: FASTAPI_BASE,
-  timeout: 180000, // 3 minutes
-});
+
 
 const nodeClient = axios.create({
   baseURL: NODE_BASE,
@@ -88,17 +84,10 @@ export const authAPI = {
     const res = await fastapiClient.post('/api/auth/signup', userData);
     return res.data;
   },
-  faceLogin: async (data) => {
-    const res = await faceClient.post('/api/auth/face-login', data);
-    return res.data;
-  },
-  faceSignup: async (data) => {
-    const res = await faceClient.post('/api/auth/face-signup', data);
-    return res.data;
-  },
   refresh: async (refreshToken) => null,
   logout: async () => null,
 };
+
 
 // ============================================================
 //  INTERVIEW SESSIONS  (Node.js backend / MongoDB)
