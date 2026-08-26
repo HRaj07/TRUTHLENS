@@ -371,7 +371,7 @@ const AuthPage = () => {
                     {forgotStep === 3 && 'New Password'}
                   </h3>
                   <p className="text-slate-400 text-sm mt-1">
-                    {forgotStep === 1 && 'We\\'ll send a verification code to your email'}
+                    {forgotStep === 1 && "We'll send a verification code to your email"}
                     {forgotStep === 2 && `Code sent to ${forgotEmail}`}
                     {forgotStep === 3 && 'Choose a strong new password'}
                   </p>
