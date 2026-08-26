@@ -205,7 +205,7 @@ class ResetPasswordRequest(BaseModel):
     new_password: str
 
 @app.post("/api/auth/forgot-password")
-def forgot_password(req: ForgotPasswordRequest):
+def forgot_password(req: ForgotPasswordRequest, background_tasks: __import__("fastapi").BackgroundTasks):
     from fastapi.responses import JSONResponse
     import random
     from email_utils import send_otp_email
@@ -222,12 +222,16 @@ def forgot_password(req: ForgotPasswordRequest):
     # Save OTP to database
     database.save_otp(req.email, otp)
     
-    # Send email
-    sent = send_otp_email(req.email, otp)
-    if not sent:
-        return JSONResponse(status_code=500, content={"error": "Failed to send OTP email. Please try again."})
+    # Send email asynchronously to prevent timeouts
+    def send_email_task(email, otp_code):
+        sent = send_otp_email(email, otp_code)
+        if sent:
+            log.info(f"OTP sent to {email}")
+        else:
+            log.error(f"Failed to send OTP email to {email}")
+            
+    background_tasks.add_task(send_email_task, req.email, otp)
     
-    log.info(f"OTP sent to {req.email}")
     return {"message": "If this email is registered, you will receive an OTP shortly."}
 
 @app.post("/api/auth/verify-otp")
