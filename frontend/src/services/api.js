@@ -4,8 +4,8 @@ import axios from 'axios';
 //  API CONFIGURATION
 //  TODO: Update base URLs to your deployed FastAPI and Node.js backend
 // ============================================================
-const FASTAPI_BASE = process.env.REACT_APP_FASTAPI_URL || 'http://127.0.0.1:8000';
-const NODE_BASE    = process.env.REACT_APP_NODE_URL    || 'http://127.0.0.1:3001';
+const FASTAPI_BASE = process.env.REACT_APP_FASTAPI_URL || 'https://truthlens-1-ypjm.onrender.com';
+const NODE_BASE    = process.env.REACT_APP_NODE_URL    || 'https://truthlens-1-ypjm.onrender.com';
 
 // Axios instances
 const fastapiClient = axios.create({
@@ -77,12 +77,22 @@ export const emotionAPI = {
 // ============================================================
 export const authAPI = {
   login: async (credentials) => {
-    const res = await fastapiClient.post('/api/auth/login', credentials);
-    return res.data;
+    try {
+      const res = await fastapiClient.post('/api/auth/login', credentials);
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Login failed. Please try again.';
+      throw new Error(msg);
+    }
   },
   signup: async (userData) => {
-    const res = await fastapiClient.post('/api/auth/signup', userData);
-    return res.data;
+    try {
+      const res = await fastapiClient.post('/api/auth/signup', userData);
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Signup failed. Please try again.';
+      throw new Error(msg);
+    }
   },
   refresh: async (refreshToken) => null,
   logout: async () => null,

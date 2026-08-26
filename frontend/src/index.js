@@ -7,7 +7,7 @@ import App from './App';
 // Render free tier spins down after inactivity and takes ~50s to wake up.
 // This silent ping fires immediately so the server is ready by the time
 // the user fills out their name and clicks Sign Up.
-const BACKEND = process.env.REACT_APP_FASTAPI_URL || 'http://127.0.0.1:8000';
+const BACKEND = process.env.REACT_APP_FASTAPI_URL || 'https://truthlens-1-ypjm.onrender.com';
 fetch(`${BACKEND}/api/ready`, { method: 'GET' })
   .then(() => console.log('✅ Backend is awake'))
   .catch(() => console.log('⏳ Backend waking up...'));

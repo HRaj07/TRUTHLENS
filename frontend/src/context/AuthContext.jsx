@@ -29,7 +29,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(finalUser));
       return finalUser;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message;
+      const msg = err.message || 'Login failed. Please try again.';
       setError(msg);
       throw new Error(msg);
     } finally {
@@ -50,7 +50,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem(STORAGE_KEY_USER, JSON.stringify(userData));
       return userData;
     } catch (err) {
-      const msg = err.response?.data?.error || err.message;
+      const msg = err.message || 'Signup failed. Please try again.';
       setError(msg);
       throw new Error(msg);
     } finally {
