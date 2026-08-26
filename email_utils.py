@@ -1,26 +1,20 @@
-import smtplib
 import os
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import json
+import urllib.request
+import urllib.error
 
 log = logging.getLogger("truthlens")
 
 def send_otp_email(to_email: str, otp_code: str) -> bool:
-    """Send an OTP code to the given email address using Gmail SMTP."""
-    gmail_address = os.environ.get("GMAIL_ADDRESS")
-    gmail_password = os.environ.get("GMAIL_APP_PASSWORD")
+    """Send an OTP code using SendGrid HTTP API."""
+    sender_email = os.environ.get("GMAIL_ADDRESS")
+    api_key = os.environ.get("SENDGRID_API_KEY")
 
-    if not gmail_address or not gmail_password:
-        log.error("GMAIL_ADDRESS or GMAIL_APP_PASSWORD not set in environment.")
+    if not sender_email or not api_key:
+        log.error("GMAIL_ADDRESS or SENDGRID_API_KEY not set in environment.")
         return False
 
-    msg = MIMEMultipart("alternative")
-    msg["Subject"] = "TruthLens - Your Password Reset Code"
-    msg["From"] = f"TruthLens <{gmail_address}>"
-    msg["To"] = to_email
-
-    # Create HTML body
     html_body = f"""
     <html>
       <body style="font-family: Arial, sans-serif; background-color: #f4f4f4; padding: 20px;">
@@ -39,16 +33,21 @@ def send_otp_email(to_email: str, otp_code: str) -> bool:
     </html>
     """
 
-    part2 = MIMEText(html_body, "html")
-    msg.attach(part2)
+    data = {
+        "personalizations": [{"to": [{"email": to_email}]}],
+        "from": {"email": sender_email, "name": "TruthLens"},
+        "subject": "TruthLens - Your Password Reset Code",
+        "content": [{"type": "text/html", "value": html_body}]
+    }
 
+    req = urllib.request.Request("https://api.sendgrid.com/v3/mail/send")
+    req.add_header("Authorization", f"Bearer {api_key}")
+    req.add_header("Content-Type", "application/json")
+    
     try:
-        server = smtplib.SMTP("smtp.gmail.com", 587)
-        server.starttls()
-        server.login(gmail_address, gmail_password)
-        server.sendmail(gmail_address, to_email, msg.as_string())
-        server.quit()
+        urllib.request.urlopen(req, json.dumps(data).encode("utf-8"))
         return True
-    except Exception as e:
-        log.error(f"Failed to send email to {to_email}: {str(e)}")
+    except urllib.error.URLError as e:
+        error_msg = e.read().decode('utf-8') if hasattr(e, 'read') else str(e)
+        log.error(f"Failed to send email via SendGrid: {error_msg}")
         return False
