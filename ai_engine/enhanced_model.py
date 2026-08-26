@@ -21,10 +21,7 @@ try:
     from deepface import DeepFace
     log.info("✅ DeepFace model loaded successfully for emotion detection")
     _deepface_available = True
-    
-    # Warm up the model on import so the first frame isn't slow
-    _dummy_img = np.zeros((224, 224, 3), dtype=np.uint8)
-    DeepFace.analyze(_dummy_img, actions=['emotion'], enforce_detection=False, detector_backend='opencv')
+    # Warmup is now deferred to the first prediction to prevent blocking server startup
 except Exception as e:
     log.error(f"❌ Could not load DeepFace: {e}")
 
