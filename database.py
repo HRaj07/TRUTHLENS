@@ -2,7 +2,7 @@ import os
 import json
 import hashlib
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 import urllib.parse
 
@@ -219,3 +219,38 @@ def save_session_results(code, results):
             'dominant_emotion': results.get("aggregateStats", {}).get("dominantEmotion", 'neutral')
         }}
     )
+
+def save_otp(email, otp, expiry_minutes=5):
+    """Save OTP for password reset. Overwrites any existing OTP for this email."""
+    email_lower = email.lower()
+    db.password_resets.delete_many({'email': email_lower})  # Clear old OTPs
+    db.password_resets.insert_one({
+        'email': email_lower,
+        'otp': otp,
+        'created_at': datetime.now(),
+        'expires_at': datetime.now() + timedelta(minutes=expiry_minutes)
+    })
+
+def verify_otp(email, otp):
+    """Verify OTP is valid and not expired. Returns True/False."""
+    email_lower = email.lower()
+    record = db.password_resets.find_one({
+        'email': email_lower,
+        'otp': otp
+    })
+    if not record:
+        return False
+    if datetime.now() > record['expires_at']:
+        db.password_resets.delete_many({'email': email_lower})
+        return False
+    return True
+
+def update_password(email, new_password):
+    """Update user's password and clean up OTP records."""
+    email_lower = email.lower()
+    result = db.users.update_one(
+        {'email': email_lower},
+        {'$set': {'password_hash': hash_password(new_password)}}
+    )
+    db.password_resets.delete_many({'email': email_lower})
+    return result.modified_count > 0

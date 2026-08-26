@@ -192,6 +192,73 @@ def signup(req: SignupRequest):
     except Exception as e:
          return JSONResponse(status_code=400, content={"error": str(e)})
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class VerifyOTPRequest(BaseModel):
+    email: str
+    otp: str
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    otp: str
+    new_password: str
+
+@app.post("/api/auth/forgot-password")
+def forgot_password(req: ForgotPasswordRequest):
+    from fastapi.responses import JSONResponse
+    import random
+    from email_utils import send_otp_email
+    
+    # Check if user exists
+    user = database.get_user_by_email_only(req.email)
+    if not user:
+        # Don't reveal if email exists or not (security)
+        return {"message": "If this email is registered, you will receive an OTP shortly."}
+    
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+    
+    # Save OTP to database
+    database.save_otp(req.email, otp)
+    
+    # Send email
+    sent = send_otp_email(req.email, otp)
+    if not sent:
+        return JSONResponse(status_code=500, content={"error": "Failed to send OTP email. Please try again."})
+    
+    log.info(f"OTP sent to {req.email}")
+    return {"message": "If this email is registered, you will receive an OTP shortly."}
+
+@app.post("/api/auth/verify-otp")
+def verify_otp_endpoint(req: VerifyOTPRequest):
+    from fastapi.responses import JSONResponse
+    
+    valid = database.verify_otp(req.email, req.otp)
+    if not valid:
+        return JSONResponse(status_code=400, content={"error": "Invalid or expired OTP. Please try again."})
+    
+    return {"message": "OTP verified successfully.", "verified": True}
+
+@app.post("/api/auth/reset-password")
+def reset_password(req: ResetPasswordRequest):
+    from fastapi.responses import JSONResponse
+    
+    # Verify OTP again for security
+    valid = database.verify_otp(req.email, req.otp)
+    if not valid:
+        return JSONResponse(status_code=400, content={"error": "Invalid or expired OTP. Please request a new one."})
+    
+    if len(req.new_password) < 6:
+        return JSONResponse(status_code=400, content={"error": "Password must be at least 6 characters."})
+    
+    updated = database.update_password(req.email, req.new_password)
+    if not updated:
+        return JSONResponse(status_code=404, content={"error": "User not found."})
+    
+    log.info(f"Password reset successful for {req.email}")
+    return {"message": "Password reset successfully. You can now login with your new password."}
+
 class FaceSignupRequest(BaseModel):
     name: str
     email: str

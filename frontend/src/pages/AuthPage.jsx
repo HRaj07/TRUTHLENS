@@ -10,9 +10,13 @@ import {
   ChevronRight,
   ArrowLeft,
   ShieldCheck,
-  Globe
+  Globe,
+  KeyRound,
+  MailCheck,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { authAPI } from '../services/api';
 
 const AuthPage = () => {
   const location = useLocation();
@@ -37,6 +41,16 @@ const AuthPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authError, setAuthError] = useState('');
+
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1=email, 2=otp, 3=new password
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [forgotMessage, setForgotMessage] = useState('');
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSubmitting, setForgotSubmitting] = useState(false);
 
   const { login, signup } = useAuth();
   const navigate = useNavigate();
@@ -66,6 +80,72 @@ const AuthPage = () => {
       setAuthError(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setForgotSubmitting(true);
+    setForgotError('');
+    setForgotMessage('');
+    try {
+      const res = await authAPI.forgotPassword(forgotEmail);
+      setForgotMessage(res.message || 'OTP sent to your email!');
+      setForgotStep(2);
+    } catch (err) {
+      setForgotError(err.message);
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setForgotSubmitting(true);
+    setForgotError('');
+    setForgotMessage('');
+    try {
+      await authAPI.verifyOtp(forgotEmail, otpCode);
+      setForgotMessage('OTP verified! Set your new password.');
+      setForgotStep(3);
+    } catch (err) {
+      setForgotError(err.message);
+    } finally {
+      setForgotSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (newPassword.length < 6) {
+      setForgotError('Password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setForgotError('Passwords do not match.');
+      return;
+    }
+    setForgotSubmitting(true);
+    setForgotError('');
+    setForgotMessage('');
+    try {
+      await authAPI.resetPassword(forgotEmail, otpCode, newPassword);
+      setForgotMessage('Password reset successful! Redirecting to login...');
+      setTimeout(() => {
+        setShowForgotPassword(false);
+        setForgotStep(1);
+        setForgotEmail('');
+        setOtpCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setForgotMessage('');
+        setForgotError('');
+        setIsLogin(true);
+      }, 2000);
+    } catch (err) {
+      setForgotError(err.message);
+    } finally {
+      setForgotSubmitting(false);
     }
   };
 
@@ -216,7 +296,7 @@ const AuthPage = () => {
             <div>
               <div className="flex justify-between items-center px-1">
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest">Password</label>
-                {isLogin && <button type="button" className="text-xs font-semibold text-neon-400 hover:text-neon-300">Forgot?</button>}
+                {isLogin && <button type="button" onClick={() => { setShowForgotPassword(true); setForgotStep(1); setForgotError(''); setForgotMessage(''); }} className="text-xs font-semibold text-neon-400 hover:text-neon-300">Forgot?</button>}
               </div>
               <div className="relative mt-2">
                 <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
@@ -266,6 +346,204 @@ const AuthPage = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Forgot Password Overlay */}
+      <AnimatePresence>
+        {showForgotPassword && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-white">
+                    {forgotStep === 1 && 'Reset Password'}
+                    {forgotStep === 2 && 'Enter OTP'}
+                    {forgotStep === 3 && 'New Password'}
+                  </h3>
+                  <p className="text-slate-400 text-sm mt-1">
+                    {forgotStep === 1 && 'We\\'ll send a verification code to your email'}
+                    {forgotStep === 2 && `Code sent to ${forgotEmail}`}
+                    {forgotStep === 3 && 'Choose a strong new password'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => { setShowForgotPassword(false); setForgotStep(1); setForgotError(''); setForgotMessage(''); }}
+                  className="text-slate-500 hover:text-white transition-colors text-2xl leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Progress Steps */}
+              <div className="flex items-center gap-2 mb-8">
+                {[1, 2, 3].map((step) => (
+                  <div key={step} className="flex items-center gap-2 flex-1">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                      forgotStep >= step
+                        ? 'bg-neon-400 text-slate-950'
+                        : 'bg-slate-800 text-slate-500'
+                    }`}>
+                      {forgotStep > step ? '✓' : step}
+                    </div>
+                    {step < 3 && (
+                      <div className={`flex-1 h-0.5 rounded transition-all ${
+                        forgotStep > step ? 'bg-neon-400' : 'bg-slate-800'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Step 1: Email */}
+              <AnimatePresence mode="wait">
+                {forgotStep === 1 && (
+                  <motion.form
+                    key="step1"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleForgotPassword}
+                    className="space-y-5"
+                  >
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Email Address</label>
+                      <div className="relative mt-2">
+                        <Mail className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                        <input
+                          type="email"
+                          required
+                          placeholder="Enter your registered email"
+                          className="input-dark !pl-12"
+                          value={forgotEmail}
+                          onChange={(e) => { setForgotEmail(e.target.value); setForgotError(''); }}
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={forgotSubmitting} className="btn-primary w-full py-4 flex items-center justify-center gap-2">
+                      {forgotSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><MailCheck className="w-5 h-5" /> Send OTP</>}
+                    </button>
+                  </motion.form>
+                )}
+
+                {/* Step 2: OTP */}
+                {forgotStep === 2 && (
+                  <motion.form
+                    key="step2"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleVerifyOtp}
+                    className="space-y-5"
+                  >
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">6-Digit OTP Code</label>
+                      <div className="relative mt-2">
+                        <KeyRound className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                        <input
+                          type="text"
+                          required
+                          maxLength={6}
+                          placeholder="Enter 6-digit code"
+                          className="input-dark !pl-12 tracking-[0.5em] text-center text-lg font-mono"
+                          value={otpCode}
+                          onChange={(e) => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6)); setForgotError(''); }}
+                        />
+                      </div>
+                      <p className="text-slate-500 text-xs mt-2 pl-1">Check your inbox and spam folder</p>
+                    </div>
+                    <button type="submit" disabled={forgotSubmitting || otpCode.length !== 6} className="btn-primary w-full py-4 flex items-center justify-center gap-2">
+                      {forgotSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><ShieldCheck className="w-5 h-5" /> Verify OTP</>}
+                    </button>
+                    <button type="button" onClick={() => { setForgotStep(1); setOtpCode(''); setForgotError(''); setForgotMessage(''); }} className="w-full text-center text-sm text-slate-500 hover:text-neon-400 transition-colors flex items-center justify-center gap-1">
+                      <RefreshCw className="w-3.5 h-3.5" /> Resend OTP
+                    </button>
+                  </motion.form>
+                )}
+
+                {/* Step 3: New Password */}
+                {forgotStep === 3 && (
+                  <motion.form
+                    key="step3"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    onSubmit={handleResetPassword}
+                    className="space-y-5"
+                  >
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">New Password</label>
+                      <div className="relative mt-2">
+                        <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                        <input
+                          type="password"
+                          required
+                          minLength={6}
+                          placeholder="Min 6 characters"
+                          className="input-dark !pl-12"
+                          value={newPassword}
+                          onChange={(e) => { setNewPassword(e.target.value); setForgotError(''); }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-slate-500 uppercase tracking-widest pl-1">Confirm Password</label>
+                      <div className="relative mt-2">
+                        <Lock className="absolute left-4 top-3.5 text-slate-500 w-5 h-5" />
+                        <input
+                          type="password"
+                          required
+                          minLength={6}
+                          placeholder="Re-enter password"
+                          className="input-dark !pl-12"
+                          value={confirmPassword}
+                          onChange={(e) => { setConfirmPassword(e.target.value); setForgotError(''); }}
+                        />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={forgotSubmitting} className="btn-primary w-full py-4 flex items-center justify-center gap-2">
+                      {forgotSubmitting ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><KeyRound className="w-5 h-5" /> Reset Password</>}
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              {/* Messages */}
+              {forgotError && (
+                <div className="mt-4 bg-danger-500/10 border border-danger-500/30 text-danger-400 text-xs py-3 px-4 rounded-lg flex items-center gap-2">
+                  <div className="w-1 h-1 bg-danger-500 rounded-full" />
+                  {forgotError}
+                </div>
+              )}
+              {forgotMessage && (
+                <div className="mt-4 bg-neon-400/10 border border-neon-400/30 text-neon-400 text-xs py-3 px-4 rounded-lg flex items-center gap-2">
+                  <div className="w-1 h-1 bg-neon-400 rounded-full" />
+                  {forgotMessage}
+                </div>
+              )}
+
+              {/* Back to Login */}
+              <div className="mt-6 text-center">
+                <button
+                  onClick={() => { setShowForgotPassword(false); setForgotStep(1); setForgotError(''); setForgotMessage(''); }}
+                  className="text-sm text-slate-500 hover:text-white transition-colors"
+                >
+                  ← Back to Login
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* --- Footer Links for Mobile --- */}
       <div className="md:hidden p-8 flex justify-center gap-6 opacity-40 grayscale filter">

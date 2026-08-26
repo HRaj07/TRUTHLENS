@@ -94,6 +94,33 @@ export const authAPI = {
       throw new Error(msg);
     }
   },
+  forgotPassword: async (email) => {
+    try {
+      const res = await fastapiClient.post('/api/auth/forgot-password', { email });
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Failed to send OTP.';
+      throw new Error(msg);
+    }
+  },
+  verifyOtp: async (email, otp) => {
+    try {
+      const res = await fastapiClient.post('/api/auth/verify-otp', { email, otp });
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'OTP verification failed.';
+      throw new Error(msg);
+    }
+  },
+  resetPassword: async (email, otp, newPassword) => {
+    try {
+      const res = await fastapiClient.post('/api/auth/reset-password', { email, otp, new_password: newPassword });
+      return res.data;
+    } catch (err) {
+      const msg = err.response?.data?.error || err.message || 'Password reset failed.';
+      throw new Error(msg);
+    }
+  },
   refresh: async (refreshToken) => null,
   logout: async () => null,
 };
